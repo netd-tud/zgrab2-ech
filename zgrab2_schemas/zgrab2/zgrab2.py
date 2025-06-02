@@ -28,7 +28,7 @@ def FlagsSet(keys, **kwargs):
 # zgrab2/processing.go: Grab
 grab_result = Record(
     {
-        # TODO: ip may be required; see https://github.com/zmap/zgrab2/issues/104
+        # TODO: ip may be required; see https://github.com/netd-tud/zgrab2/issues/104
         "ip": IPv4Address(required=False, doc="The IP address of the target."),
         "domain": String(
             required=False, doc="The domain name of the target, if available."

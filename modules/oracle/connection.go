@@ -4,7 +4,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // HandshakeLog gives the results of the initial connection handshake in a form

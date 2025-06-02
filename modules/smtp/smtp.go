@@ -5,7 +5,7 @@ import (
 	"net"
 	"regexp"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // This is the regex used in zgrab.

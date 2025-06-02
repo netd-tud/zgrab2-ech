@@ -5,9 +5,9 @@ import (
 
 	"encoding/json"
 
+	"github.com/netd-tud/zgrab2"
 	amqpLib "github.com/rabbitmq/amqp091-go"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 )
 
 // Flags holds the command-line configuration for the smb scan module.

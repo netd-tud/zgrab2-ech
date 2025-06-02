@@ -34,10 +34,10 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/netd-tud/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http/httptest"
+	"github.com/netd-tud/zgrab2/lib/http/httputil"
 	"github.com/zmap/zcrypto/tls"
-	. "github.com/zmap/zgrab2/lib/http"
-	"github.com/zmap/zgrab2/lib/http/httptest"
-	"github.com/zmap/zgrab2/lib/http/httputil"
 )
 
 type dummyAddr string

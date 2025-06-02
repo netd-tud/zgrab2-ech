@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 const s7ModuleIdRecordSize = 28

@@ -3,7 +3,7 @@ package mongodb
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 	"io"
 )
 

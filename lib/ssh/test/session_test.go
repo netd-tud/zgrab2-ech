@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zmap/zgrab2/lib/ssh"
+	"github.com/netd-tud/zgrab2/lib/ssh"
 )
 
 func DISABLED_TestRunCommandSuccess(t *testing.T) {

@@ -28,7 +28,7 @@ Replace `/path/to/your/config.ini` with the path to your configuration file on t
 For Go 1.17 and later you must build from source:
 
 ```shell
-git clone https://github.com/zmap/zgrab2.git
+git clone https://github.com/netd-tud/zgrab2.git
 cd zgrab2
 make
 ./zgrab2
@@ -42,13 +42,13 @@ You will need to have a valid `$GOPATH` set up, for more information about `$GOP
 Once you have a working `$GOPATH`, run:
 
 ```shell
-go get github.com/zmap/zgrab2
+go get github.com/netd-tud/zgrab2
 ```
 
-This will install zgrab under `$GOPATH/src/github.com/zmap/zgrab2`
+This will install zgrab under `$GOPATH/src/github.com/netd-tud/zgrab2`
 
 ```shell
-cd $GOPATH/src/github.com/zmap/zgrab2
+cd $GOPATH/src/github.com/netd-tud/zgrab2
 make
 ```
 

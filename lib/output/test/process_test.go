@@ -19,14 +19,14 @@ import (
 	"io/ioutil"
 	"os/exec"
 
+	"github.com/netd-tud/zgrab2"
+	"github.com/netd-tud/zgrab2/lib/output"
 	"github.com/sirupsen/logrus"
 	"github.com/zmap/zcrypto/encoding/asn1"
 	jsonKeys "github.com/zmap/zcrypto/json"
 	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zcrypto/x509/pkix"
-	"github.com/zmap/zgrab2"
-	"github.com/zmap/zgrab2/lib/output"
 )
 
 const doFailDiffs = false

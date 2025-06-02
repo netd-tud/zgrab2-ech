@@ -15,7 +15,7 @@
 //	        panic(err)
 //	}
 //	defer terminal.Restore(0, oldState)
-package terminal // import "github.com/zmap/zgrab2/lib/ssh/terminal"
+package terminal // import "github.com/netd-tud/zgrab2/lib/ssh/terminal"
 
 import (
 	"io"

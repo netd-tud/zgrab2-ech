@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/zmap/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http"
 )
 
 // hello world, the web server

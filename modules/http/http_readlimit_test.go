@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/netd-tud/zgrab2"
+	"github.com/netd-tud/zgrab2/lib/http"
 	"github.com/zmap/zcrypto/tls"
-	"github.com/zmap/zgrab2"
-	"github.com/zmap/zgrab2/lib/http"
 )
 
 // BEGIN Taken from handshake_server_test.go -- certs for TLS server

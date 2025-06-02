@@ -1,7 +1,7 @@
 package fox
 
 import (
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // FoxLog is the struct returned to the caller.

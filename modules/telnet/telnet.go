@@ -23,7 +23,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // RFC 854 - https://tools.ietf.org/html/rfc854

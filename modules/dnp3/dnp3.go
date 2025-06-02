@@ -20,7 +20,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // DNP3 Flags

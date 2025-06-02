@@ -6,8 +6,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/netd-tud/zgrab2/lib/output"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2/lib/output"
 )
 
 // Grab contains all scan responses for a single host
