@@ -1,9 +1,9 @@
 package ech
 
 import (
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"net"
 )
 
@@ -43,7 +43,7 @@ func toIntSlice[T ~[]byte](vs T) []int {
 	return ints
 }
 
-func ipFromTlsConn(conn *tls.Conn) *string {
+func ipFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil || conn.NetConn() == nil {
 		return nil
 	}
@@ -55,7 +55,7 @@ func ipFromTlsConn(conn *tls.Conn) *string {
 	return &host
 }
 
-func transportFromTlsConn(conn *tls.Conn) *string {
+func transportFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil || conn.NetConn() == nil {
 		return nil
 	}
@@ -64,16 +64,16 @@ func transportFromTlsConn(conn *tls.Conn) *string {
 	return &transport
 }
 
-func versionFromTlsConn(conn *tls.Conn) *string {
+func versionFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}
 
-	version := tls.VersionName(conn.ConnectionState().Version)
+	version := ftls.VersionName(conn.ConnectionState().Version)
 	return &version
 }
 
-func echAcceptedFromTlsConn(conn *tls.Conn) *bool {
+func echAcceptedFromTlsConn(conn *ftls.Conn) *bool {
 	if conn == nil {
 		return nil
 	}
@@ -82,7 +82,7 @@ func echAcceptedFromTlsConn(conn *tls.Conn) *bool {
 	return &accepted
 }
 
-func handshakeCompletedFromTlsConn(conn *tls.Conn) *bool {
+func handshakeCompletedFromTlsConn(conn *ftls.Conn) *bool {
 	if conn == nil {
 		return nil
 	}
@@ -92,7 +92,7 @@ func handshakeCompletedFromTlsConn(conn *tls.Conn) *bool {
 	return &complete
 }
 
-func protoFromTlsConn(conn *tls.Conn) *string {
+func protoFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}
@@ -102,35 +102,35 @@ func protoFromTlsConn(conn *tls.Conn) *string {
 	return &proto
 }
 
-func cipherFromTlsConn(conn *tls.Conn) *string {
+func cipherFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}
 
-	proto := tls.CipherSuiteName(conn.ConnectionState().CipherSuite)
+	proto := ftls.CipherSuiteName(conn.ConnectionState().CipherSuite)
 
 	return &proto
 }
 
-func clientHelloOuterFromTlsConn(conn *tls.Conn) tls.ClientHelloMsg {
+func clientHelloOuterFromTlsConn(conn *ftls.Conn) ftls.ClientHelloMsg {
 	if conn == nil {
-		return tls.ClientHelloMsg{}
+		return ftls.ClientHelloMsg{}
 	}
 
 	return conn.ClientHelloOuter
 }
 
-func clientHelloInnerFromTlsConn(conn *tls.Conn) tls.ClientHelloMsg {
+func clientHelloInnerFromTlsConn(conn *ftls.Conn) ftls.ClientHelloMsg {
 	if conn == nil && conn.ClientHelloInner == nil {
-		return tls.ClientHelloMsg{}
+		return ftls.ClientHelloMsg{}
 	}
 
 	return *conn.ClientHelloInner
 }
 
-func serverHelloFromTlsConn(conn *tls.Conn) tls.ServerHelloMsg {
+func serverHelloFromTlsConn(conn *ftls.Conn) ftls.ServerHelloMsg {
 	if conn == nil {
-		return tls.ServerHelloMsg{}
+		return ftls.ServerHelloMsg{}
 	}
 
 	return conn.ServerHello

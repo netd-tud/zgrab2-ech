@@ -2,13 +2,15 @@ package ech
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"time"
 
+	"github.com/OmarTariq612/goech"
+	"github.com/netd-tud/zgrab2/gofork/quic"
+	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/quic"
 )
 
 type quicConn struct {
@@ -25,16 +27,16 @@ func newQuicConn(domain string, rawEch []byte, primer func() error) *quicConn {
 		connTimeout: time.Second * 10,
 		connPrimer:  primer,
 		configWithEch: &quic.Config{
-			TLSConfig: &tls.Config{
-				MinVersion:                     tls.VersionTLS13,
+			TLSConfig: &ftls.Config{
+				MinVersion:                     ftls.VersionTLS13,
 				ServerName:                     domain,
 				EncryptedClientHelloConfigList: rawEch,
 				NextProtos:                     []string{"h3"},
 			},
 		},
 		configWithoutEch: &quic.Config{
-			TLSConfig: &tls.Config{
-				MinVersion: tls.VersionTLS13,
+			TLSConfig: &ftls.Config{
+				MinVersion: ftls.VersionTLS13,
 				ServerName: domain,
 				NextProtos: []string{"h3"},
 			},
@@ -44,22 +46,13 @@ func newQuicConn(domain string, rawEch []byte, primer func() error) *quicConn {
 
 func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 
-	// NOTE: measurements show that if we only perform one request with ECH and one without
-	// ECH enabled that what ever request is made first takes a significant amount of time
-	// longer than the subsequent request. Assumption is caching, hence, we perform a dummy
-	// request initially which we ignore before doing the actual two requests
-	_, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithoutEch)
-	if err != nil {
-		errO := fmt.Errorf("unable to dial QUIC dummy conn to %s: %v", c.domain, err)
-		errOut := errO.Error()
-		return &ConnDetails{Protocol: "h3", Error: &errOut}, errO
-	}
-
-	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
-	if err != nil {
-		errO := fmt.Errorf("unable to dial QUIC conn to %s: %v", c.domain, err)
-		errOut := errO.Error()
-		return &ConnDetails{Protocol: "h3", Error: &errOut}, errO
+	// execute any primer function set for the protocol run.
+	// the primer can be used to level networking related bias
+	// such as cache fillings etc.
+	if c.connPrimer != nil {
+		if err := c.connPrimer(); err != nil {
+			return nil, fmt.Errorf("primer function: %w", err)
+		}
 	}
 
 	var tlsHandshakeDurationAnchor int64 = -1 // denotes invalid result
@@ -83,6 +76,22 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 			}
 		}
 	}
+
+	var parsedRetryList goech.ECHConfigList
+
+	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
+	if err != nil {
+		var echErr *ftls.ECHRejectionError
+		if errors.As(err, &echErr) {
+			connECH, parsedRetryList, err = c.tryRetryConfig(echErr)
+			if err != nil {
+				return nil, fmt.Errorf("quic: ECH conn with retry config failed: %v", err)
+			}
+		} else {
+			return nil, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)
+		}
+	}
+	defer connECH.Close()
 
 	qConn := connECH.TLS
 	tlsConn := qConn.Conn
@@ -108,6 +117,16 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 		ClientHelloOuter:           clientHelloOuterFromTlsConn(tlsConn),
 		ClientHelloInner:           clientHelloInnerFromTlsConn(tlsConn),
 		ServerHello:                serverHelloFromTlsConn(tlsConn),
+		RetryConfigs: mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+			return RetryConfig{
+				EchVersion:  int(rt.Version),
+				EchConfigID: int(rt.ConfigID),
+				PublicName:  string(rt.RawPublicName),
+				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
+					return cs.String()
+				}),
+			}
+		}),
 	}, nil
 }
 
@@ -151,4 +170,29 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, config *q
 	conn.Close()
 
 	return conn, nil
+}
+
+func (c *quicConn) tryRetryConfig(retryConfigs *ftls.ECHRejectionError) (*quic.Conn, goech.ECHConfigList, error) {
+	if len(retryConfigs.RetryConfigList) == 0 {
+		return nil, nil, fmt.Errorf("quic: RetryConfig: server provided empty RetryConfig")
+	}
+
+	parsedRetryList, err := echFromjRetry(retryConfigs.RetryConfigList)
+	if err != nil {
+		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to parse server provided RetryConfig: %v", err)
+	}
+
+	parsed, err := parsedRetryList.MarshalBinary()
+	if err != nil {
+		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
+	}
+
+	// retry ECH connection with parsed ECH RetryConfig
+	c.configWithEch.TLSConfig.EncryptedClientHelloConfigList = parsed
+	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
+	if err != nil {
+		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", c.domain, err)
+	}
+
+	return connECH, parsedRetryList, nil
 }

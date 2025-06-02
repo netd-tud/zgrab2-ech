@@ -4,7 +4,9 @@ else
   EXECUTABLE_EXTENSION :=
 endif
 
-GO_BIN=/Users/konstantingasser/coffeecode/uni/golangech/bin/go
+# GO_BIN=/Users/konstantingasser/coffeecode/uni/golangech/bin/go
+GO_BIN=$(shell which go)
+
 GO_FILES = $(shell find . -type f -name '*.go')
 TEST_MODULES ?= 
 

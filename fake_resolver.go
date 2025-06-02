@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/net/dns/dnsmessage"
 	"net"
 	"time"
+
+	"github.com/netd-tud/zgrab2/gofork/dns/dnsmessage"
 )
 
 // Fake DNS Resolver, to force a DNS lookup to return a pinned address

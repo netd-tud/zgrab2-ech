@@ -21,7 +21,7 @@ func greaseECH(domain string, overWriteConfigID int) (goech.ECHConfig, error) {
 
 	pubKey, _, err := hpke.KEM_X25519_HKDF_SHA256.Scheme().GenerateKeyPair()
 	if err != nil {
-		return goech.ECHConfig{}, fmt.Errorf("Unable to generate HPKE KEM_X25519_HKDP_SHA256 key pair as random public key for GREASE ECH config", err)
+		return goech.ECHConfig{}, fmt.Errorf("Unable to generate HPKE KEM_X25519_HKDP_SHA256 key pair as random public key for GREASE ECH config: %v", err)
 	}
 
 	// generate GREASE ECH config

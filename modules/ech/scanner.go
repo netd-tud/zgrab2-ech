@@ -1,9 +1,9 @@
 package ech
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
+	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -128,7 +128,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		}
 	case "tls":
 		primerFunc = func() error {
-			return primeWithTLSConn(target.Domain, &tls.Config{ServerName: target.Domain}, nil)
+			return primeWithTLSConn(target.Domain, &ftls.Config{ServerName: target.Domain}, nil)
 		}
 	case "dns":
 		primerFunc = func() error {
@@ -139,7 +139,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	var protoIter = newProtoIter(s.config.MeasureHandshakeLatency)
 
 	switch *s.config.Protocols {
-	case "none": // use h1,h2,h3
+	case "none":
 		protoIter.Append(
 			newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h1"}, primerFunc),
 			newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h2"}, primerFunc),
@@ -159,14 +159,15 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	start := time.Now()
 	for details, err := range protoIter.Iter() {
 		if err != nil {
-			if errors.Is(err, ErrProtosExhausted) {
-				return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("all tested protocols returned an error")
-			}
 			log.Warnf("Tested protocol returned an error: %v", err)
-		} else {
-			details.populate(echConfig)
-			results = append(results, *details)
+			if errors.Is(err, ErrProtosExhausted) {
+				return zgrab2.SCAN_APPLICATION_ERROR, nil, err
+			}
+			continue
 		}
+
+		details.populate(echConfig)
+		results = append(results, *details)
 
 	}
 
