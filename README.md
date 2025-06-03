@@ -6,7 +6,7 @@ More specifically, this module tries to identify whether a given domain/IP hosts
 
 ## Scanner workflow
 
-The scanner imiates an ECH enabled client by supplying a correct/valid ECH configuration during the TLS handshake in the ClientHello message. Based on the specified options the scanner opens a network connection (TCP/UDP-Quic)to the target and tries to establish a TLS connection (waits at least until the handshake is finished, or the handshake gets aborted). 
+The scanner imitates an ECH enabled client by supplying a correct/valid ECH configuration during the TLS handshake in the ClientHello message. Based on the specified options the scanner opens a network connection (TCP/UDP-Quic) to the target and tries to establish a TLS connection (waits at least until the handshake is finished, or the handshake gets aborted). 
 
 Should the server accept the EncryptedClientHello, the target is marked as _enabled_ and meta-data about the connection is written, such as the __ClientHelloOuter__, the __ClientHelloInner__, and the __ServerHello__. In addition the used __ECH Config__, the targets IP address are logged in the same record.
 
@@ -16,9 +16,9 @@ In the case of any TLS abortion or any other network related errors, the target 
 
 ## Measuring TLS handshake latency
 
-In addition to detecting enabled ECH deployments, the scanner can be instructed to measure the time the TLS handshake took. When enabled, an additional network connection of the same protocol is made before the ECH connection. This prior connection has neither a valid nor a _GREASE ECH_ configuration supplied and is used to anchor for comparison. 
+In addition to detecting enabled ECH deployments, the scanner can be instructed to measure the time the TLS handshake took. When enabled, an additional network connection of the same protocol is made before the ECH connection. This prior connection has neither a valid nor a _GREASE ECH_ configuration supplied and is used as anchor for comparison. 
 
-Observation of latency measurements have shown that the initial connection might be biased by network related effects such as caching or else. This can result in an increased latency for the inital connection. Observation shows, that this bias is independed of what the initial connection is, and for both ECH connection or non-ECH connection this bias has been observed. To mitigate the bias the scanner accepts a `--conn-primer` flag which specifies a network connection to the target. The primer can be a _tcp_ connection, a _tls_ connection, or a _dns_ query. No information from the primer function is logged but each successful record will indicate which primer was used (none is the default).
+Observation of latency measurements have shown that the initial connection might be biased by network related effects such as caching or else. This can result in an unintentionally increased latency for the inital connection. Observation shows, that this bias is independed of what the initial connection is, and for both ECH connection or non-ECH connection this bias has been observed. To mitigate the bias the scanner accepts a `--conn-primer` flag which specifies a network connection to the target. The primer can be a _tcp_ connection, a _tls_ connection, or a _dns_ query. No information from the primer function is logged but each successful record will indicate which primer was used (none is the default).
 
 
 ## Usage
