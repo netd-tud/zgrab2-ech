@@ -11,8 +11,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
-	"github.com/netd-tud/zgrab2/gofork/tls"
 	"errors"
+	"github.com/netd-tud/zgrab2/gofork/tls"
 	"hash"
 
 	"golang.org/x/crypto/chacha20"

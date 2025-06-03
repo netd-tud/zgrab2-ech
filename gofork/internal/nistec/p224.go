@@ -7,9 +7,9 @@
 package nistec
 
 import (
-	"github.com/netd-tud/zgrab2/gofork/internal/nistec/fiat"
 	"crypto/subtle"
 	"errors"
+	"github.com/netd-tud/zgrab2/gofork/internal/nistec/fiat"
 	"sync"
 )
 

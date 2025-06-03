@@ -7,9 +7,9 @@
 package quic
 
 import (
-	"github.com/netd-tud/zgrab2/gofork/tls"
 	"crypto/x509"
 	"errors"
+	"github.com/netd-tud/zgrab2/gofork/tls"
 	"testing"
 	"time"
 )

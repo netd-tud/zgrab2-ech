@@ -8,9 +8,9 @@ package quic
 
 import (
 	"context"
-	"github.com/netd-tud/zgrab2/gofork/tls"
 	"errors"
 	"fmt"
+	"github.com/netd-tud/zgrab2/gofork/tls"
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"log/slog"
 	"net/netip"

@@ -241,7 +241,7 @@ func TestQLogPacketDropped(t *testing.T) {
 		{headerFormShort | fixedBit},
 		testLocalConnID(0),
 		make([]byte, 100),
-		[]byte{1, 2, 3, 4}, // random data, to avoid this looking like a stateless reset
+		{1, 2, 3, 4}, // random data, to avoid this looking like a stateless reset
 	}, nil)
 	tc.endpoint.write(&datagram{
 		b: dgram,

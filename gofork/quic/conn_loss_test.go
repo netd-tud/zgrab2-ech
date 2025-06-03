@@ -8,8 +8,8 @@ package quic
 
 import (
 	"context"
-	"github.com/netd-tud/zgrab2/gofork/tls"
 	"fmt"
+	"github.com/netd-tud/zgrab2/gofork/tls"
 	"testing"
 )
 

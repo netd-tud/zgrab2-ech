@@ -7,8 +7,8 @@
 package quic
 
 import (
-	"github.com/netd-tud/zgrab2/gofork/tls"
 	"errors"
+	"github.com/netd-tud/zgrab2/gofork/tls"
 	"time"
 )
 
