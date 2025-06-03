@@ -42,6 +42,8 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func(*Con
 func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 
 	var details = ConnDetails{
+		Domain:                     c.domain,
+		Timestamp:                  time.Now(),
 		Protocol:                   "tcp",
 		TLSHandshakeAnchorDuration: -1, // denotes unset
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"net"
+	"time"
 
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"github.com/sirupsen/logrus"
@@ -20,6 +21,8 @@ type RetryConfig struct {
 }
 
 type ConnDetails struct {
+	Timestamp                  time.Time           `json:"timestamp"`
+	Domain                     string              `json:"domain"`
 	Protocol                   string              `json:"protocol"`
 	Primer                     string              `json:"conn_primer"`
 	Error                      *string             `json:"error"`

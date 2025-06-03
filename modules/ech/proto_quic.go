@@ -49,6 +49,8 @@ func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) 
 func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 
 	var details = ConnDetails{
+		Timestamp:                  time.Now(),
+		Domain:                     c.domain,
 		Protocol:                   "quic",
 		TLSHandshakeAnchorDuration: -1,
 	}
