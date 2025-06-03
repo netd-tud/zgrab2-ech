@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -18,7 +19,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/zmap/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http"
 )
 
 // hello world, the web server

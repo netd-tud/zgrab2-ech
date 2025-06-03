@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"crypto/rsa"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"math/big"
@@ -20,13 +19,14 @@ import (
 	"io/ioutil"
 	"os/exec"
 
+	"github.com/netd-tud/zgrab2"
+	"github.com/netd-tud/zgrab2/lib/output"
 	"github.com/sirupsen/logrus"
+	"github.com/zmap/zcrypto/encoding/asn1"
 	jsonKeys "github.com/zmap/zcrypto/json"
 	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zcrypto/x509/pkix"
-	"github.com/zmap/zgrab2"
-	"github.com/zmap/zgrab2/lib/output"
 )
 
 const doFailDiffs = false
@@ -1050,14 +1050,14 @@ func TestMySQL(t *testing.T) {
 					SerialNumber:          big.NewInt(2),
 					Issuer: pkix.Name{
 						CommonName: "MySQL_Server_8.0.3-rc_Auto_Generated_CA_Certificate",
-						Names: []pkix.AttributeTypeAndValue{pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3},
+						Names: []pkix.AttributeTypeAndValue{{Type: asn1.ObjectIdentifier{2, 5, 4, 3},
 							Value: "MySQL_Server_8.0.3-rc_Auto_Generated_CA_Certificate"}},
 						ExtraNames: []pkix.AttributeTypeAndValue(nil),
 						OriginalRDNS: pkix.RDNSequence{pkix.RelativeDistinguishedNameSET{pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3},
 							Value: "MySQL_Server_8.0.3-rc_Auto_Generated_CA_Certificate"}}}},
 					Subject: pkix.Name{
 						CommonName: "MySQL_Server_8.0.3-rc_Auto_Generated_Server_Certificate",
-						Names: []pkix.AttributeTypeAndValue{pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3},
+						Names: []pkix.AttributeTypeAndValue{{Type: asn1.ObjectIdentifier{2, 5, 4, 3},
 							Value: "MySQL_Server_8.0.3-rc_Auto_Generated_Server_Certificate"}},
 						ExtraNames: []pkix.AttributeTypeAndValue(nil),
 						OriginalRDNS: pkix.RDNSequence{pkix.RelativeDistinguishedNameSET{pkix.AttributeTypeAndValue{Type: asn1.ObjectIdentifier{2, 5, 4, 3},

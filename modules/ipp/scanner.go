@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+
 	//"fmt"
 	"io"
 	"io/ioutil"
@@ -16,9 +17,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/netd-tud/zgrab2"
+	"github.com/netd-tud/zgrab2/lib/http"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
-	"github.com/zmap/zgrab2/lib/http"
 )
 
 const (
@@ -40,8 +41,18 @@ var (
 	// TODO: Explain this error
 	ErrVersionNotSupported = errors.New("IPP version not supported")
 
-	Versions = []version{{Major: 2, Minor: 1}, {Major: 2, Minor: 0}, {Major: 1, Minor: 1}, {Major: 1, Minor: 0}}
-	AttributesCharset = []byte{0x47, 0x00, 0x12, 0x61, 0x74, 0x74, 0x72, 0x69, 0x62, 0x75, 0x74, 0x65, 0x73, 0x2d, 0x63, 0x68, 0x61, 0x72, 0x73, 0x65, 0x74}
+	Versions = []version{
+		{Major: 2, Minor: 1},
+		{Major: 2, Minor: 0},
+		{Major: 1, Minor: 1},
+		{Major: 1, Minor: 0},
+	}
+
+	AttributesCharset = []byte{
+		0x47, 0x00, 0x12, 0x61, 0x74, 0x74, 0x72, 0x69,
+		0x62, 0x75, 0x74, 0x65, 0x73, 0x2d, 0x63, 0x68,
+		0x61, 0x72, 0x73, 0x65, 0x74,
+	}
 )
 
 type scan struct {
@@ -53,7 +64,7 @@ type scan struct {
 	tls         bool
 }
 
-//TODO: Tag relevant results and exlain in comments
+// TODO: Tag relevant results and exlain in comments
 // ScanResults instances are returned by the module's Scan function.
 type ScanResults struct {
 	//TODO: ?Include the request sent as well??
@@ -70,9 +81,9 @@ type ScanResults struct {
 	CUPSVersion   string `json:"cups_version,omitempty"`
 
 	Attributes           []*Attribute `json:"attributes,omitempty"`
-	AttributeCUPSVersion string   `json:"attr_cups_version,omitempty"`
-	AttributeIPPVersions []string `json:"attr_ipp_versions,omitempty"`
-	AttributePrinterURIs []string `json:"attr_printer_uris,omitempty"`
+	AttributeCUPSVersion string       `json:"attr_cups_version,omitempty"`
+	AttributeIPPVersions []string     `json:"attr_ipp_versions,omitempty"`
+	AttributePrinterURIs []string     `json:"attr_printer_uris,omitempty"`
 
 	TLSLog *zgrab2.TLSLog `json:"tls,omitempty"`
 }
@@ -117,7 +128,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("ipp", "ipp", "Probe for ipp", 631, &module)
+	_, err := zgrab2.AddCommand("ipp", "ipp", module.Description(), 631, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,6 +142,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Probe for printers via IPP"
 }
 
 // Validate checks that the flags are valid.
@@ -177,11 +193,6 @@ func (scanner *Scanner) Protocol() string {
 	return "ipp"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 // FIXME: Add some error handling somewhere in here, unless errors should just be ignored and we get what we get
 func storeBody(res *http.Response, scanner *Scanner) {
 	b := bufferFromBody(res, scanner)
@@ -211,13 +222,13 @@ type Value struct {
 }
 
 type Attribute struct {
-	Name string    `json:"name,omitempty"`
-	Values []Value `json:"values,omitempty"`
-	ValueTag byte  `json:"tag,omitempty"`
+	Name     string  `json:"name,omitempty"`
+	Values   []Value `json:"values,omitempty"`
+	ValueTag byte    `json:"tag,omitempty"`
 }
 
 func shouldReturnAttrs(length, soFar, size, upperBound int) (bool, error) {
-	if soFar + length > size {
+	if soFar+length > size {
 		// Size should never exceed upperBound in practice because of truncation, but this is more general
 		if size >= upperBound {
 			return true, nil
@@ -235,8 +246,10 @@ func detectReadBodyError(err error) error {
 	return zgrab2.NewScanError(zgrab2.TryGetScanStatus(err), err)
 }
 
-/* An IPP response contains the following data (as specified in RFC 8010 Section 3.1.8
-   https://tools.ietf.org/html/rfc8010#section-3.1.8)
+/*
+	An IPP response contains the following data (as specified in RFC 8010 Section 3.1.8
+	  https://tools.ietf.org/html/rfc8010#section-3.1.8)
+
 bytes name
 ----------------------------
 2     version-number
@@ -265,9 +278,9 @@ func readAllAttributes(body []byte, scanner *Scanner) ([]*Attribute, error) {
 	buf := bytes.NewBuffer(body)
 	// Each field of this struct is exported to avoid binary.Read panicking
 	var start struct {
-		Version int16
+		Version    int16
 		StatusCode int16
-		ReqID int32
+		ReqID      int32
 	}
 	// Read in pre-attribute part of body to ignore it
 	if err := binary.Read(buf, binary.BigEndian, &start); err != nil {
@@ -296,15 +309,16 @@ func readAllAttributes(body []byte, scanner *Scanner) ([]*Attribute, error) {
 			continue
 		}
 		// TODO: Implement parsing attribute collections, since they're special
-		// Read in length of attribute's name, which will be used to determine whether this attribute stands alone
-		// or provides an additonal value for the previous attribute
-		var nameLength int16
+		// Read in length of attribute's name, which will be used to determine
+		// whether this attribute stands alone or provides an additonal value
+		// for the previous attribute
+		var nameLength uint16
 		if err := binary.Read(buf, binary.BigEndian, &nameLength); err != nil {
 			return attrs, detectReadBodyError(err)
 		}
 		bytesRead += 2
 		// If reading the name would entail reading past body, check whether body was truncated
-		if should, err := shouldReturnAttrs(int(nameLength), bytesRead, len(body), scanner.config.MaxSize * 1024); should {
+		if should, err := shouldReturnAttrs(int(nameLength), bytesRead, len(body), scanner.config.MaxSize*1024); should {
 			// If body was truncated, return all attributes so far without error
 			// Otherwise, return a protocol error because name-length should indicate the
 			// length of the following name when obeying the protocol's encoding
@@ -316,7 +330,7 @@ func readAllAttributes(body []byte, scanner *Scanner) ([]*Attribute, error) {
 		// an additional value for the former, so we read and append another value for that attr
 		if tag == lastTag && nameLength == 0 {
 			attr = attrs[len(attrs)-1]
-		// Otherwise, create a new attribute and read in its name
+			// Otherwise, create a new attribute and read in its name
 		} else {
 			attr = &Attribute{ValueTag: tag}
 			attrs = append(attrs, attr)
@@ -337,7 +351,7 @@ func readAllAttributes(body []byte, scanner *Scanner) ([]*Attribute, error) {
 		}
 		bytesRead += 2
 		// If reading the name would entail reading past body, check whether body was truncated
-		if should, err := shouldReturnAttrs(int(length), bytesRead, len(body), scanner.config.MaxSize * 1024); should {
+		if should, err := shouldReturnAttrs(int(length), bytesRead, len(body), scanner.config.MaxSize*1024); should {
 			// If body was truncated, return all attributes so far without error
 			// Otherwise, return a protocol error because name-length should indicate the
 			// length of the following name when obeying the protocol's encoding
@@ -371,7 +385,7 @@ func (scanner *Scanner) tryReadAttributes(resp *http.Response, scan *scan) *zgra
 	// Therefore, an HTTP Status Code other than 200 indicates the response is not a well-formed IPP response.
 	// RFC 8010 Section 3.4.3 Source: https://tools.ietf.org/html/rfc8010#section-3.4.3
 	if resp.StatusCode != 200 {
-		return zgrab2.NewScanError(zgrab2.SCAN_APPLICATION_ERROR, errors.New("Response returned with status " + resp.Status))
+		return zgrab2.NewScanError(zgrab2.SCAN_APPLICATION_ERROR, errors.New("Response returned with status "+resp.Status))
 	}
 
 	// Reject successful responses which specify non-IPP MIME mediatype (ie: text/html)
@@ -582,7 +596,7 @@ func (scanner *Scanner) Grab(scan *scan, target *zgrab2.ScanTarget, version *ver
 	return nil
 }
 
-//Taken from zgrab/zlib/grabber.go -- check if the URL points to localhost
+// Taken from zgrab/zlib/grabber.go -- check if the URL points to localhost
 func redirectsToLocalhost(host string) bool {
 	if i := net.ParseIP(host); i != nil {
 		return i.IsLoopback() || i.Equal(net.IPv4zero)
@@ -676,8 +690,15 @@ func (scanner *Scanner) newIPPScan(target *zgrab2.ScanTarget, tls bool) *scan {
 		// FIXME: Change this, since ipp uri's cannot contain an IP address. Still valid for HTTP
 		host = target.IP.String()
 	}
+	// Scanner Target port overrides config flag port
+	var port uint16
+	if target.Port != nil {
+		port = uint16(*target.Port)
+	} else {
+		port = uint16(scanner.config.BaseFlags.Port)
+	}
 	// FIXME: ?Should just use endpoint "/", since we get the same response as "/ipp" on CUPS??
-	newScan.url = getHTTPURL(tls, host, uint16(scanner.config.BaseFlags.Port), "/ipp")
+	newScan.url = getHTTPURL(tls, host, port, "/ipp")
 	return &newScan
 }
 
@@ -719,8 +740,8 @@ func (scan *scan) shouldReportResult(scanner *Scanner) bool {
 }
 
 // Scan TODO: describe how scan operates in appropriate detail
-//1. Send a request (currently get-printer-attributes)
-//2. Take in that response & read out version numbers
+// 1. Send a request (currently get-printer-attributes)
+// 2. Take in that response & read out version numbers
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
 	// Try all known IPP versions from newest to oldest until we reach a supported version
 	scan, err := scanner.tryGrabForVersions(&target, Versions, scanner.config.TLSRetry || scanner.config.IPPSecure)

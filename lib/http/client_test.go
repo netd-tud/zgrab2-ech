@@ -25,11 +25,11 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/netd-tud/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http/cookiejar"
+	"github.com/netd-tud/zgrab2/lib/http/httptest"
 	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zcrypto/x509"
-	. "github.com/zmap/zgrab2/lib/http"
-	"github.com/zmap/zgrab2/lib/http/cookiejar"
-	"github.com/zmap/zgrab2/lib/http/httptest"
 )
 
 var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1067,9 +1067,9 @@ func TestClientHeadContentLength_h1(t *testing.T) {
 }
 
 /*
-func TestClientHeadContentLength_h2(t *testing.T) {
-	testClientHeadContentLength(t, h2Mode)
-}
+	func TestClientHeadContentLength_h2(t *testing.T) {
+		testClientHeadContentLength(t, h2Mode)
+	}
 */
 func testClientHeadContentLength(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -1379,7 +1379,7 @@ func TestClientTimeoutCancel(t *testing.T) {
 
 func TestClientRedirectEatsBody_h1(t *testing.T) { testClientRedirectEatsBody(t, h1Mode) }
 
-//func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
+// func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
 func testClientRedirectEatsBody(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)

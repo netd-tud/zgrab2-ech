@@ -4,7 +4,7 @@ package #{MODULE_NAME}
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // ScanResults instances are returned by the module's Scan function.
@@ -93,11 +93,6 @@ func (scanner *Scanner) GetTrigger() string {
 // Protocol returns the protocol identifier of the scan.
 func (scanner *Scanner) Protocol() string {
 	return "#{MODULE_NAME}"
-}
-
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
 }
 
 // Scan TODO: describe what is scanned

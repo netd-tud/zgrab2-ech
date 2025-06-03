@@ -32,12 +32,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zmap/zgrab2/lib/http/httputil"
-	//"github.com/zmap/zgrab2/lib/http/nettrace"
+	"github.com/netd-tud/zgrab2/lib/http/httputil"
+	//"github.com/netd-tud/zgrab2/lib/http/nettrace"
+	. "github.com/netd-tud/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http/httptest"
+	"github.com/netd-tud/zgrab2/lib/http/httptrace"
 	"github.com/zmap/zcrypto/tls"
-	. "github.com/zmap/zgrab2/lib/http"
-	"github.com/zmap/zgrab2/lib/http/httptest"
-	"github.com/zmap/zgrab2/lib/http/httptrace"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -3645,7 +3645,7 @@ func TestTransportMaxIdleConns(t *testing.T) {
 
 func TestTransportIdleConnTimeout_h1(t *testing.T) { testTransportIdleConnTimeout(t, h1Mode) }
 
-//func TestTransportIdleConnTimeout_h2(t *testing.T) { testTransportIdleConnTimeout(t, h2Mode) }
+// func TestTransportIdleConnTimeout_h2(t *testing.T) { testTransportIdleConnTimeout(t, h2Mode) }
 func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")

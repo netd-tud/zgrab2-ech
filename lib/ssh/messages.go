@@ -6,7 +6,9 @@ package ssh
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,7 +56,7 @@ func (d *disconnectMsg) Error() string {
 // See RFC 4253, section 7.1.
 const msgKexInit = 20
 
-type kexInitMsg struct {
+type KexInitMsg struct {
 	Cookie                  [16]byte `sshtype:"20"`
 	KexAlgos                []string
 	ServerHostKeyAlgos      []string
@@ -84,9 +86,10 @@ type JsonKexInitMsg struct {
 	LanguagesServerClient   []string `json:"server_to_client_languages,omitempty"`
 	FirstKexFollows         bool     `json:"first_kex_follows"`
 	Reserved                uint32   `json:"reserved"`
+	ServerHaSSH             string   `json:"serverHaSSH"`
 }
 
-func (kex *kexInitMsg) MarshalJSON() ([]byte, error) {
+func (kex *KexInitMsg) MarshalJSON() ([]byte, error) {
 	temp := JsonKexInitMsg{
 		Cookie:                  kex.Cookie[:],
 		KexAlgos:                kex.KexAlgos,
@@ -101,8 +104,21 @@ func (kex *kexInitMsg) MarshalJSON() ([]byte, error) {
 		LanguagesServerClient:   kex.LanguagesServerClient,
 		FirstKexFollows:         kex.FirstKexFollows,
 		Reserved:                kex.Reserved,
+		ServerHaSSH:             kex.GenerateServerHaSSH(),
 	}
 	return json.Marshal(temp)
+}
+
+func (kex *KexInitMsg) GenerateServerHaSSH() string {
+	input := strings.Join(
+		[]string{
+			strings.Join(kex.KexAlgos, ","),
+			strings.Join(kex.CiphersServerClient, ","),
+			strings.Join(kex.MACsServerClient, ","),
+			strings.Join(kex.CompressionServerClient, ","),
+		}, ";")
+	md5 := md5.Sum([]byte(input))
+	return hex.EncodeToString(md5[:])
 }
 
 // See RFC 4253, section 8.
@@ -753,7 +769,7 @@ func decode(packet []byte) (interface{}, error) {
 	case msgServiceAccept:
 		msg = new(serviceAcceptMsg)
 	case msgKexInit:
-		msg = new(kexInitMsg)
+		msg = new(KexInitMsg)
 	case msgKexDHInit:
 		msg = new(kexDHInitMsg)
 	case msgKexDHReply:

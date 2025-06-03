@@ -13,9 +13,9 @@ import (
 	"net"
 	"runtime/debug"
 
-	"github.com/zmap/zgrab2/lib/smb/gss"
-	"github.com/zmap/zgrab2/lib/smb/ntlmssp"
-	"github.com/zmap/zgrab2/lib/smb/smb/encoder"
+	"github.com/netd-tud/zgrab2/lib/smb/gss"
+	"github.com/netd-tud/zgrab2/lib/smb/ntlmssp"
+	"github.com/netd-tud/zgrab2/lib/smb/smb/encoder"
 )
 
 type Session struct {
@@ -330,7 +330,7 @@ func (s *Session) TreeDisconnect(name string) error {
 
 func (s *Session) Close() {
 	s.Debug("Closing session", nil)
-	for k, _ := range s.trees {
+	for k := range s.trees {
 		s.TreeDisconnect(k)
 	}
 	s.Debug("Closing TCP connection", nil)
@@ -363,7 +363,7 @@ func (s *Session) send(req interface{}) (res []byte, err error) {
 		s.Debug("", err)
 		return
 	}
-	if size > 0x00FFFFFF {
+	if size > 0x00FFFFFF || size < 4 {
 		return nil, errors.New("Invalid NetBIOS Session message")
 	}
 
@@ -381,6 +381,7 @@ func (s *Session) send(req interface{}) (res []byte, err error) {
 	switch string(protID) {
 	default:
 		return nil, errors.New("Protocol Not Implemented")
+	case ProtocolSmb:
 	case ProtocolSmb2:
 	}
 

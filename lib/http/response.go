@@ -29,7 +29,6 @@ var respExcludeHeader = map[string]bool{
 type PageFingerprint []byte
 
 // Response represents the response from an HTTP request.
-//
 type Response struct {
 	Status     string   `json:"status_line,omitempty"` // e.g. "200 OK"
 	StatusCode int      `json:"status_code,omitempty"` // e.g. 200
@@ -44,6 +43,12 @@ type Response struct {
 	//
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
 	Header Header `json:"headers,omitempty"`
+
+	// The raw bytes of the MIME headers, as read from the underlying
+	// reader.  This allows for post-processing to be done on an exact
+	// copy of the headers.  The headers will not be canonicalized nor
+	// re-ordered or converted to a map.
+	HeadersRaw []byte `json:"headers_raw,omitempty"`
 
 	// Body represents the response body.
 	//
@@ -60,6 +65,11 @@ type Response struct {
 	Body       io.ReadCloser   `json:"-"`
 	BodyText   string          `json:"body,omitempty"`
 	BodySHA256 PageFingerprint `json:"body_sha256,omitempty"`
+	// BodyHash is the hash digest hex of the decoded http body, formatted `<kind>:<hex>`
+	// e.g. `sha256:deadbeef100020003000400050006000700080009000a000b000c000d000e000`
+	BodyHash string `json:"body_hash,omitempty"`
+	// Number of bytes read from the server and encoded into BodyText
+	BodyTextLength int64 `json:"body_length,omitempty"`
 
 	// ContentLength records the length of the associated content. The
 	// value -1 indicates that the length is unknown. Unless Request.Method
@@ -153,10 +163,22 @@ func (r *Response) Location() (*url.URL, error) {
 // After that call, clients can inspect resp.Trailer to find key/value
 // pairs included in the response trailer.
 func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+	return readResponse(&TeeConn{br: r}, req)
+}
+func ReadResponseTee(tc *TeeConn, req *Request) (*Response, error) {
+	return readResponse(tc, req)
+}
+func readResponse(tc *TeeConn, req *Request) (*Response, error) {
+	r := tc.BufioReader()
 	tp := textproto.NewReader(r)
 	resp := &Response{
 		Request: req,
 	}
+
+	// To extract the raw response through headers, we want to find the offsets
+	// for where we are at in the io.TeeReader compared to the bufio.Reader
+	// both at the start of the response parsing, and at the end.
+	hdrStart := tc.ReadPos()
 
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
@@ -197,6 +219,11 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return resp, err
 	}
+	// No need to continue tee reads into the tee buffer, go ahead and
+	// disable it
+	tc.Disable()
+	hdrEnd := tc.ReadPos()
+	resp.HeadersRaw = tc.Bytes(hdrStart, hdrEnd)
 	resp.Header = Header(mimeHeader)
 
 	fixPragmaCacheControl(resp.Header)
@@ -210,8 +237,11 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 }
 
 // RFC 2616: Should treat
+//
 //	Pragma: no-cache
+//
 // like
+//
 //	Cache-Control: no-cache
 func fixPragmaCacheControl(header Header) {
 	if hp, ok := header["Pragma"]; ok && len(hp) > 0 && hp[0] == "no-cache" {
@@ -233,15 +263,15 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //
 // This method consults the following fields of the response r:
 //
-//  StatusCode
-//  ProtoMajor
-//  ProtoMinor
-//  Request.Method
-//  TransferEncoding
-//  Trailer
-//  Body
-//  ContentLength
-//  Header, values for non-canonical keys will have unpredictable behavior
+//	StatusCode
+//	ProtoMajor
+//	ProtoMinor
+//	Request.Method
+//	TransferEncoding
+//	Trailer
+//	Body
+//	ContentLength
+//	Header, values for non-canonical keys will have unpredictable behavior
 //
 // The Response Body is closed after it is sent.
 func (r *Response) Write(w io.Writer) error {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !windows
 // +build !windows
 
 package test
@@ -15,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zmap/zgrab2/lib/ssh"
+	"github.com/netd-tud/zgrab2/lib/ssh"
 )
 
 func DISABLED_TestRunCommandSuccess(t *testing.T) {

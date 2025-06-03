@@ -6,8 +6,10 @@
 package fox
 
 import (
+	"errors"
+	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
+	"net"
 )
 
 // Flags holds the command-line configuration for the fox scan module.
@@ -16,6 +18,8 @@ type Flags struct {
 	zgrab2.BaseFlags
 
 	Verbose bool `long:"verbose" description:"More verbose logging, include debug fields in the scan results"`
+	UseTLS  bool `long:"use-tls" description:"Sends probe with a TLS connection. Loads TLS module command options."`
+	zgrab2.TLSFlags
 }
 
 // Module implements the zgrab2.Module interface.
@@ -30,7 +34,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("fox", "fox", "Probe for Tridium Fox", 1911, &module)
+	_, err := zgrab2.AddCommand("fox", "fox", module.Description(), 1911, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,6 +48,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Probe for Tridium Fox"
 }
 
 // Validate checks that the flags are valid.
@@ -85,11 +94,6 @@ func (scanner *Scanner) Protocol() string {
 	return "fox"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 // Scan probes for a Tridium Fox service.
 // 1. Opens a TCP connection to the configured port (default 1911)
 // 2. Sends a static query
@@ -97,16 +101,44 @@ func (scanner *Scanner) GetPort() uint {
 // 4. If the response has the Fox response prefix, mark the scan as having detected the service.
 // 5. Attempt to read any / all of the data fields from the Log struct
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
-	conn, err := target.Open(&scanner.config.BaseFlags)
+
+	var (
+		conn    net.Conn
+		tlsConn *zgrab2.TLSConnection
+		err     error
+	)
+
+	conn, err = target.Open(&scanner.config.BaseFlags)
+	if scanner.config.UseTLS {
+		tlsConn, err = scanner.config.TLSFlags.GetTLSConnection(conn)
+		if err != nil {
+			return zgrab2.TryGetScanStatus(err), nil, err
+		}
+		if err := tlsConn.Handshake(); err != nil {
+			return zgrab2.TryGetScanStatus(err), nil, err
+		}
+		conn = tlsConn
+	} else {
+		conn, err = target.Open(&scanner.config.BaseFlags)
+	}
+
 	if err != nil {
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
+
 	defer conn.Close()
 	result := new(FoxLog)
+	if tlsConn != nil {
+		result.TLSLog = tlsConn.GetLog()
+	}
 
 	err = GetFoxBanner(result, conn)
 	if !result.IsFox {
 		result = nil
+		err = &zgrab2.ScanError{
+			Err:    errors.New("host responds, but is not a fox service"),
+			Status: zgrab2.SCAN_PROTOCOL_ERROR,
+		}
 	}
 	return zgrab2.TryGetScanStatus(err), result, err
 }

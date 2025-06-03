@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 )
 
 // ScanResults instances are returned by the module's Scan function.
@@ -106,7 +106,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("oracle", "oracle", "Probe for oracle", 1521, &module)
+	_, err := zgrab2.AddCommand("oracle", "oracle", module.Description(), 1521, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,6 +120,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Perform a handshake with Oracle database servers"
 }
 
 // Validate checks that the flags are valid.
@@ -183,11 +188,6 @@ func (scanner *Scanner) Protocol() string {
 	return "oracle"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 func (scanner *Scanner) getTNSDriver() *TNSDriver {
 	mode := TNSModeOld
 	if scanner.config.NewTNS {
@@ -209,7 +209,7 @@ func (scanner *Scanner) getTNSDriver() *TNSDriver {
 //  6. If the response is...
 //     a. ...a Resend packet, then set result.DidResend and re-send the packet.
 //     b. ...a Refused packet, then set the result.RefuseReason and RefuseError,
-//        then exit.
+//     then exit.
 //     c. ...a Redirect packet, then set result.RedirectTarget and exit.
 //     d. ...an Accept packet, go to 7
 //     e. ...anything else: exit with SCAN_APPLICATION_ERROR

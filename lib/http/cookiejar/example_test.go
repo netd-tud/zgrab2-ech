@@ -9,9 +9,9 @@ import (
 	"log"
 	"net/url"
 
-	"github.com/zmap/zgrab2/lib/http"
-	"github.com/zmap/zgrab2/lib/http/cookiejar"
-	"github.com/zmap/zgrab2/lib/http/httptest"
+	"github.com/netd-tud/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http/cookiejar"
+	"github.com/netd-tud/zgrab2/lib/http/httptest"
 )
 
 func ExampleNew() {
@@ -31,7 +31,7 @@ func ExampleNew() {
 		log.Fatal(err)
 	}
 
-	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
+	// All users of cookiejar should import "github.com/netd-tud/zgrab2/gofork/quic/publicsuffix"
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		log.Fatal(err)

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || dragonfly || freebsd || (linux && !appengine) || netbsd || openbsd
 // +build darwin dragonfly freebsd linux,!appengine netbsd openbsd
 
 // Package terminal provides support functions for dealing with terminals, as
@@ -9,12 +10,12 @@
 //
 // Putting a terminal into raw mode is the most common requirement:
 //
-// 	oldState, err := terminal.MakeRaw(0)
-// 	if err != nil {
-// 	        panic(err)
-// 	}
-// 	defer terminal.Restore(0, oldState)
-package terminal // import "github.com/zmap/zgrab2/lib/ssh/terminal"
+//	oldState, err := terminal.MakeRaw(0)
+//	if err != nil {
+//	        panic(err)
+//	}
+//	defer terminal.Restore(0, oldState)
+package terminal // import "github.com/netd-tud/zgrab2/lib/ssh/terminal"
 
 import (
 	"io"

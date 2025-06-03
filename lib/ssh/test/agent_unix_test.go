@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
 // +build darwin dragonfly freebsd linux netbsd openbsd
 
 package test
@@ -10,8 +11,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/zmap/zgrab2/lib/ssh"
-	"github.com/zmap/zgrab2/lib/ssh/agent"
+	"github.com/netd-tud/zgrab2/lib/ssh"
+	"github.com/netd-tud/zgrab2/lib/ssh/agent"
 )
 
 func DISABLED_TestAgentForward(t *testing.T) {

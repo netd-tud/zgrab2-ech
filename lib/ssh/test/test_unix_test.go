@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || plan9
 // +build darwin dragonfly freebsd linux netbsd openbsd plan9
 
 package test
@@ -21,8 +22,8 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/zmap/zgrab2/lib/ssh"
-	"github.com/zmap/zgrab2/lib/ssh/testdata"
+	"github.com/netd-tud/zgrab2/lib/ssh"
+	"github.com/netd-tud/zgrab2/lib/ssh/testdata"
 )
 
 const sshd_config = `

@@ -166,7 +166,7 @@ func TestUnmarshalShortKexInitPacket(t *testing.T) {
 	// This used to panic.
 	// Issue 11348
 	packet := []byte{0x14, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0xff, 0xff, 0xff, 0xff}
-	kim := &kexInitMsg{}
+	kim := &KexInitMsg{}
 	if err := Unmarshal(packet, kim); err == nil {
 		t.Error("truncated packet unmarshaled without error")
 	}
@@ -206,6 +206,29 @@ func TestMarshalMultiTag(t *testing.T) {
 	}
 }
 
+func TestHaSSH(t *testing.T) {
+	ki := &KexInitMsg{}
+	randSource := rand.New(rand.NewSource(0))
+	randomBytes(ki.Cookie[:], randSource)
+	ki.KexAlgos = []string{"curve25519-sha256@libssh.org", "diffie-hellman-group-exchange-sha256", "ecdh-sha2-nistp521", "ecdh-sha2-nistp384", "ecdh-sha2-nistp256", "diffie-hellman-group-exchange-sha1", "diffie-hellman-group1-sha1", "diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256", "diffie-hellman-group15-sha512", "diffie-hellman-group16-sha512", "diffie-hellman-group17-sha512", "diffie-hellman-group18-sha512", "diffie-hellman-group14-sha256@ssh.com", "diffie-hellman-group15-sha256", "diffie-hellman-group15-sha256@ssh.com", "diffie-hellman-group15-sha384@ssh.com", "diffie-hellman-group16-sha256", "diffie-hellman-group16-sha384@ssh.com", "diffie-hellman-group16-sha512@ssh.com", "diffie-hellman-group18-sha512@ssh.com"}
+	ki.ServerHostKeyAlgos = randomNameList(randSource)
+	ki.CiphersClientServer = randomNameList(randSource)
+	ki.CiphersServerClient = []string{"aes128-cbc", "aes128-ctr", "aes192-cbc", "aes192-ctr", "aes256-cbc", "aes256-ctr", "blowfish-cbc", "blowfish-ctr", "cast128-cbc", "cast128-ctr", "idea-cbc", "idea-ctr", "serpent128-cbc", "serpent128-ctr", "serpent192-cbc", "serpent192-ctr", "serpent256-cbc", "serpent256-ctr", "3des-cbc", "3des-ctr", "twofish128-cbc", "twofish128-ctr", "twofish192-cbc", "twofish192-ctr", "twofish256-cbc", "twofish256-ctr", "twofish-cbc", "arcfour", "arcfour128", "arcfour256"}
+	ki.MACsClientServer = randomNameList(randSource)
+	ki.MACsServerClient = []string{"hmac-sha1", "hmac-sha1-96", "hmac-md5", "hmac-md5-96", "hmac-sha2-256", "hmac-sha2-512"}
+	ki.CompressionClientServer = randomNameList(randSource)
+	ki.CompressionServerClient = []string{"zlib@openssh.com", "zlib", "none"}
+	ki.LanguagesClientServer = randomNameList(randSource)
+	ki.LanguagesServerClient = randomNameList(randSource)
+	ki.FirstKexFollows = true
+
+	hassh := ki.GenerateServerHaSSH()
+	expected := "8a8ae540028bf433cd68356c1b9e8d5b"
+	if hassh != expected {
+		t.Errorf("Unexpected hash. Wanted %s, got %s", expected, hassh)
+	}
+}
+
 func randomBytes(out []byte, rand *rand.Rand) {
 	for i := 0; i < len(out); i++ {
 		out[i] = byte(rand.Int31())
@@ -228,8 +251,8 @@ func randomInt(rand *rand.Rand) *big.Int {
 	return new(big.Int).SetInt64(int64(int32(rand.Uint32())))
 }
 
-func (*kexInitMsg) Generate(rand *rand.Rand, size int) reflect.Value {
-	ki := &kexInitMsg{}
+func (*KexInitMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	ki := &KexInitMsg{}
 	randomBytes(ki.Cookie[:], rand)
 	ki.KexAlgos = randomNameList(rand)
 	ki.ServerHostKeyAlgos = randomNameList(rand)
@@ -254,7 +277,7 @@ func (*kexDHInitMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 var (
-	_kexInitMsg   = new(kexInitMsg).Generate(rand.New(rand.NewSource(0)), 10).Elem().Interface()
+	_kexInitMsg   = new(KexInitMsg).Generate(rand.New(rand.NewSource(0)), 10).Elem().Interface()
 	_kexDHInitMsg = new(kexDHInitMsg).Generate(rand.New(rand.NewSource(0)), 10).Elem().Interface()
 
 	_kexInit   = Marshal(_kexInitMsg)
@@ -268,7 +291,7 @@ func BenchmarkMarshalKexInitMsg(b *testing.B) {
 }
 
 func BenchmarkUnmarshalKexInitMsg(b *testing.B) {
-	m := new(kexInitMsg)
+	m := new(KexInitMsg)
 	for i := 0; i < b.N; i++ {
 		Unmarshal(_kexInit, m)
 	}

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/zmap/zgrab2/lib/http"
+	. "github.com/netd-tud/zgrab2/lib/http"
 )
 
 func TestQuery(t *testing.T) {
@@ -232,7 +232,7 @@ func TestParseMultipartForm(t *testing.T) {
 
 func TestRedirect_h1(t *testing.T) { testRedirect(t, h1Mode) }
 
-//func TestRedirect_h2(t *testing.T) { testRedirect(t, h2Mode) }
+// func TestRedirect_h2(t *testing.T) { testRedirect(t, h2Mode) }
 func testRedirect(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {

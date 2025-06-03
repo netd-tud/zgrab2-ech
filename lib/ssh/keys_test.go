@@ -6,7 +6,6 @@ package ssh
 
 import (
 	"bytes"
-	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -17,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zmap/zgrab2/lib/ssh/testdata"
+	"github.com/netd-tud/zgrab2/lib/ssh/testdata"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -26,7 +25,7 @@ func rawKey(pub PublicKey) interface{} {
 	case *rsaPublicKey:
 		return (*rsa.PublicKey)(k)
 	case *dsaPublicKey:
-		return (*dsa.PublicKey)(k)
+		return (*dsaPublicKey)(k)
 	case *ecdsaPublicKey:
 		return (*ecdsa.PublicKey)(k)
 	case ed25519PublicKey:

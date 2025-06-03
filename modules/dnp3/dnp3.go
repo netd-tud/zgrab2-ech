@@ -16,10 +16,11 @@ package dnp3
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 
-	"github.com/zmap/zgrab2"
+	"github.com/netd-tud/zgrab2"
 )
 
 // DNP3 Flags
@@ -73,9 +74,10 @@ func GetDNP3Banner(logStruct *DNP3Log, connection net.Conn) (err error) {
 	if len(data) >= LINK_MIN_HEADER_LENGTH && binary.BigEndian.Uint16(data[0:2]) == LINK_START_FIELD {
 		logStruct.IsDNP3 = true
 		logStruct.RawResponse = data
+		return nil
 	}
 
-	return nil
+	return zgrab2.NewScanError(zgrab2.SCAN_PROTOCOL_ERROR, errors.New("Invalid response for DNP3"))
 }
 
 func makeLinkStatusRequest(dstAddress uint16) []byte {

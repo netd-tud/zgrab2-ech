@@ -85,7 +85,7 @@ func (c *TimeoutConnection) Read(b []byte) (n int, err error) {
 		// we had to shrink the output buffer AND we used up the whole shrunk size, AND we're not at EOF
 		switch c.ReadLimitExceededAction {
 		case ReadLimitExceededActionTruncate:
-			logrus.Debug("Truncated read from %d bytes to %d bytes (hit limit of %d bytes)", origSize, n, c.BytesReadLimit)
+			logrus.Debugf("Truncated read from %d bytes to %d bytes (hit limit of %d bytes)", origSize, n, c.BytesReadLimit)
 			err = io.EOF
 		case ReadLimitExceededActionError:
 			return n, ErrReadLimitExceeded
@@ -219,10 +219,10 @@ func (c *TimeoutConnection) SetDefaults() *TimeoutConnection {
 // NewTimeoutConnection returns a new TimeoutConnection with the appropriate defaults.
 func NewTimeoutConnection(ctx context.Context, conn net.Conn, timeout, readTimeout, writeTimeout time.Duration, bytesReadLimit int) *TimeoutConnection {
 	ret := (&TimeoutConnection{
-		Conn:         conn,
-		Timeout:      timeout,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		Conn:           conn,
+		Timeout:        timeout,
+		ReadTimeout:    readTimeout,
+		WriteTimeout:   writeTimeout,
 		BytesReadLimit: bytesReadLimit,
 	}).SetDefaults()
 	if ctx == nil {
@@ -298,6 +298,10 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (net.
 	// ensure that our aux dialer is up-to-date; copied from http/transport.go
 	d.Dialer.Timeout = d.getTimeout(d.ConnectTimeout)
 	d.Dialer.KeepAlive = d.Timeout
+
+	// Copy over the source IP if set, or nil
+	d.Dialer.LocalAddr = config.localAddr
+
 	dialContext, cancelDial := context.WithTimeout(ctx, d.Dialer.Timeout)
 	defer cancelDial()
 	conn, err := d.Dialer.DialContext(dialContext, network, address)
@@ -336,6 +340,16 @@ func (d *Dialer) SetDefaults() *Dialer {
 			Timeout:   d.Timeout,
 			KeepAlive: d.Timeout,
 			DualStack: true,
+		}
+
+		// Use custom DNS as default if set
+		if config.CustomDNS != "" {
+			d.Dialer.Resolver = &net.Resolver{
+				PreferGo: true,
+				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					return net.Dial(network, config.CustomDNS)
+				},
+			}
 		}
 	}
 	return d

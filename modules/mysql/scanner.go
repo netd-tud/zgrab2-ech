@@ -7,9 +7,9 @@ package mysql
 import (
 	"reflect"
 
+	"github.com/netd-tud/zgrab2"
+	"github.com/netd-tud/zgrab2/lib/mysql"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
-	"github.com/zmap/zgrab2/lib/mysql"
 )
 
 // ScanResults contains detailed information about the scan.
@@ -149,7 +149,7 @@ type Scanner struct {
 // RegisterModule is called by modules/mysql.go to register the scanner.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("mysql", "MySQL", "Grab a MySQL handshake", 3306, &module)
+	_, err := zgrab2.AddCommand("mysql", "MySQL", module.Description(), 3306, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -163,6 +163,11 @@ func (m *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner object.
 func (m *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (m *Module) Description() string {
+	return "Perform a handshake with a MySQL database"
 }
 
 // Validate validates the flags and returns nil on success.
@@ -205,16 +210,11 @@ func (scanner *Scanner) GetTrigger() string {
 	return scanner.config.Trigger
 }
 
-// GetPort returns the port that is being scanned.
-func (s *Scanner) GetPort() uint {
-	return s.config.Port
-}
-
 // Scan probles the target for a MySQL server.
-// 1. Connects and waits to receive the handshake packet.
-// 2. If the server supports SSL, send an SSLRequest packet, then
-//    perform the standard TLS actions.
-// 3. Process and return the results.
+//  1. Connects and waits to receive the handshake packet.
+//  2. If the server supports SSL, send an SSLRequest packet, then
+//     perform the standard TLS actions.
+//  3. Process and return the results.
 func (s *Scanner) Scan(t zgrab2.ScanTarget) (status zgrab2.ScanStatus, result interface{}, thrown error) {
 	var tlsConn *zgrab2.TLSConnection
 	sql := mysql.NewConnection(&mysql.Config{})

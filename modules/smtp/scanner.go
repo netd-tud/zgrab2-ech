@@ -29,13 +29,14 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 )
 
 // ErrInvalidResponse is returned when the server returns an invalid or unexpected response.
-var ErrInvalidResponse = errors.New("invalid response")
+var ErrInvalidResponse = zgrab2.NewScanError(zgrab2.SCAN_PROTOCOL_ERROR, errors.New("Invalid response for SMTP"))
 
 // ScanResults instances are returned by the module's Scan function.
 type ScanResults struct {
@@ -57,6 +58,10 @@ type ScanResults struct {
 	// QUIT is the server's response to the QUIT command, if it is sent.
 	QUIT string `json:"quit,omitempty"`
 
+	// ImplicitTLS is true if the connection was wrapped in TLS, as opposed
+	// to using StartTls
+	ImplicitTLS bool `json:"implicit_tls,omitempty"`
+
 	// TLSLog is the standard TLS log, if STARTTLS is sent.
 	TLSLog *zgrab2.TLSLog `json:"tls,omitempty"`
 }
@@ -67,11 +72,11 @@ type Flags struct {
 	zgrab2.BaseFlags
 	zgrab2.TLSFlags
 
-	// SendHELO indicates that the EHLO command should be set.
+	// SendEHLO indicates that the EHLO command should be set.
 	SendEHLO bool `long:"send-ehlo" description:"Send the EHLO command; use --ehlo-domain to set a domain."`
 
-	// SendEHLO indicates that the EHLO command should be set.
-	SendHELO bool `long:"send-helo" description:"Send the EHLO command; use --helo-domain to set a domain."`
+	// SendHELO indicates that the HELO command should be set.
+	SendHELO bool `long:"send-helo" description:"Send the HELO command; use --helo-domain to set a domain."`
 
 	// SendHELP indicates that the client should send the HELP command (after HELO/EHLO).
 	SendHELP bool `long:"send-help" description:"Send the HELP command"`
@@ -82,7 +87,7 @@ type Flags struct {
 	// HELODomain is the domain the client should send in the HELO command.
 	HELODomain string `long:"helo-domain" description:"Set the domain to use with the HELO command. Implies --send-helo."`
 
-	// EHLODomain is the domain the client should send in the HELO command.
+	// EHLODomain is the domain the client should send in the EHLO command.
 	EHLODomain string `long:"ehlo-domain" description:"Set the domain to use with the EHLO command. Implies --send-ehlo."`
 
 	// SMTPSecure indicates that the entire transaction should be wrapped in a TLS session.
@@ -107,7 +112,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("smtp", "smtp", "Probe for smtp", 25, &module)
+	_, err := zgrab2.AddCommand("smtp", "smtp", module.Description(), 25, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,6 +126,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Fetch an SMTP server banner, optionally over TLS"
 }
 
 // Validate checks that the flags are valid.
@@ -176,11 +186,6 @@ func (scanner *Scanner) Protocol() string {
 	return "smtp"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 func getSMTPCode(response string) (int, error) {
 	if len(response) < 5 {
 		return 0, ErrInvalidResponse
@@ -200,17 +205,38 @@ func getCommand(cmd string, arg string) string {
 	return cmd + " " + arg
 }
 
+// Verify that an SMTP code was returned, and that it is a successful one!
+// Return code on SCAN_APPLICATION_ERROR for better info
+func VerifySMTPContents(banner string) (zgrab2.ScanStatus, int) {
+	code, err := getSMTPCode(banner)
+	lowerBanner := strings.ToLower(banner)
+	switch {
+	case err == nil && (code < 200 || code >= 300):
+		return zgrab2.SCAN_APPLICATION_ERROR, code
+	case err == nil,
+		strings.Contains(banner, "SMTP"),
+		strings.Contains(lowerBanner, "blacklist"),
+		strings.Contains(lowerBanner, "abuse"),
+		strings.Contains(lowerBanner, "rbl"),
+		strings.Contains(lowerBanner, "spamhaus"),
+		strings.Contains(lowerBanner, "relay"):
+		return zgrab2.SCAN_SUCCESS, 0
+	default:
+		return zgrab2.SCAN_PROTOCOL_ERROR, 0
+	}
+}
+
 // Scan performs the SMTP scan.
-// 1. Open a TCP connection to the target port (default 25).
-// 2. If --smtps is set, perform a TLS handshake.
-// 3. Read the banner.
-// 4. If --send-ehlo or --send-helo is sent, send the corresponding EHLO
-//    or HELO command.
-// 5. If --send-help is sent, send HELP, read the result.
-// 6. If --starttls is sent, send STARTTLS, read the result, negotiate a
-//    TLS connection.
-// 7. If --send-quit is sent, send QUIT and read the result.
-// 8. Close the connection.
+//  1. Open a TCP connection to the target port (default 25).
+//  2. If --smtps is set, perform a TLS handshake.
+//  3. Read the banner.
+//  4. If --send-ehlo or --send-helo is sent, send the corresponding EHLO
+//     or HELO command.
+//  5. If --send-help is sent, send HELP, read the result.
+//  6. If --starttls is sent, send STARTTLS, read the result, negotiate a
+//     TLS connection.
+//  7. If --send-quit is sent, send QUIT and read the result.
+//  8. Close the connection.
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
 	c, err := target.Open(&scanner.config.BaseFlags)
 	if err != nil {
@@ -228,6 +254,7 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 			return zgrab2.TryGetScanStatus(err), result, err
 		}
 		c = tlsConn
+		result.ImplicitTLS = true
 	}
 	conn := Connection{Conn: c}
 	banner, err := conn.ReadResponse()
@@ -236,6 +263,12 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 			result = nil
 		}
 		return zgrab2.TryGetScanStatus(err), result, err
+	}
+	// Quit early if we didn't get a valid response
+	// OR save response to return later
+	sr, bannerResponseCode := VerifySMTPContents(banner)
+	if sr == zgrab2.SCAN_PROTOCOL_ERROR {
+		return sr, nil, errors.New("Invalid response for SMTP")
 	}
 	result.Banner = banner
 	if scanner.config.SendHELO {
@@ -270,7 +303,7 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 			return zgrab2.TryGetScanStatus(err), result, err
 		}
 		if code < 200 || code >= 300 {
-			return zgrab2.SCAN_APPLICATION_ERROR, result, fmt.Errorf("SMTP error code %d returned from STARTTLS command (%s)", code, ret)
+			return zgrab2.SCAN_APPLICATION_ERROR, result, fmt.Errorf("SMTP error code %d returned from STARTTLS command (%s)", code, strings.TrimSpace(ret))
 		}
 		tlsConn, err := scanner.config.TLSFlags.GetTLSConnection(conn.Conn)
 		if err != nil {
@@ -291,5 +324,8 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 		}
 		result.QUIT = ret
 	}
-	return zgrab2.SCAN_SUCCESS, result, nil
+	if sr == zgrab2.SCAN_APPLICATION_ERROR {
+		return sr, result, fmt.Errorf("SMTP error code %d returned in banner grab", bannerResponseCode)
+	}
+	return sr, result, nil
 }

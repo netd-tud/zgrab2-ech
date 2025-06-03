@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/zmap/zgrab2/lib/http"
-	"github.com/zmap/zgrab2/lib/http/httptest"
+	. "github.com/netd-tud/zgrab2/lib/http"
+	"github.com/netd-tud/zgrab2/lib/http/httptest"
 )
 
 const (
@@ -530,7 +530,7 @@ func TestServeDirWithoutTrailingSlash(t *testing.T) {
 // specified.
 func TestServeFileWithContentEncoding_h1(t *testing.T) { testServeFileWithContentEncoding(t, h1Mode) }
 
-//func TestServeFileWithContentEncoding_h2(t *testing.T) { testServeFileWithContentEncoding(t, h2Mode) }
+// func TestServeFileWithContentEncoding_h2(t *testing.T) { testServeFileWithContentEncoding(t, h2Mode) }
 func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {

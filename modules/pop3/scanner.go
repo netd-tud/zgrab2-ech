@@ -27,10 +27,10 @@ package pop3
 
 import (
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 	"strings"
+
+	"github.com/netd-tud/zgrab2"
+	log "github.com/sirupsen/logrus"
 )
 
 // ScanResults instances are returned by the module's Scan function.
@@ -91,7 +91,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("pop3", "pop3", "Probe for pop3", 110, &module)
+	_, err := zgrab2.AddCommand("pop3", "pop3", module.Description(), 110, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,6 +105,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Fetch POP3 banners, optionally over TLS"
 }
 
 // Validate checks that the flags are valid.
@@ -150,11 +155,6 @@ func (scanner *Scanner) Protocol() string {
 	return "pop3"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 func getPOP3Error(response string) error {
 	if !strings.HasPrefix(response, "-") {
 		return nil
@@ -162,17 +162,39 @@ func getPOP3Error(response string) error {
 	return fmt.Errorf("POP3 error: %s", response[1:])
 }
 
+// Check the contents of the POP3 header and return a relevant ScanStatus
+func VerifyPOP3Contents(banner string) zgrab2.ScanStatus {
+	lowerBanner := strings.ToLower(banner)
+	switch {
+	case strings.HasPrefix(banner, "-ERR "):
+		return zgrab2.SCAN_APPLICATION_ERROR
+	case strings.HasPrefix(banner, "+OK "),
+		banner == "+OK\r\n",
+		strings.Contains(banner, "POP3"),
+		// These are rare for POP3 if they happen at all,
+		// But it won't hurt to check just in case as a backup
+		strings.Contains(lowerBanner, "blacklist"),
+		strings.Contains(lowerBanner, "abuse"),
+		strings.Contains(lowerBanner, "rbl"),
+		strings.Contains(lowerBanner, "spamhaus"),
+		strings.Contains(lowerBanner, "relay"):
+		return zgrab2.SCAN_SUCCESS
+	default:
+		return zgrab2.SCAN_PROTOCOL_ERROR
+	}
+}
+
 // Scan performs the POP3 scan.
-// 1. Open a TCP connection to the target port (default 110).
-// 2. If --pop3s is set, perform a TLS handshake using the command-line
-//    flags.
-// 3. Read the banner.
-// 4. If --send-help is sent, send HELP, read the result.
-// 5. If --send-noop is sent, send NOOP, read the result.
-// 6. If --starttls is sent, send STLS, read the result, negotiate a
-//    TLS connection using the command-line flags.
-// 7. If --send-quit is sent, send QUIT and read the result.
-// 8. Close the connection.
+//  1. Open a TCP connection to the target port (default 110).
+//  2. If --pop3s is set, perform a TLS handshake using the command-line
+//     flags.
+//  3. Read the banner.
+//  4. If --send-help is sent, send HELP, read the result.
+//  5. If --send-noop is sent, send NOOP, read the result.
+//  6. If --starttls is sent, send STLS, read the result, negotiate a
+//     TLS connection using the command-line flags.
+//  7. If --send-quit is sent, send QUIT and read the result.
+//  8. Close the connection.
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
 	c, err := target.Open(&scanner.config.BaseFlags)
 	if err != nil {
@@ -195,6 +217,12 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 	banner, err := conn.ReadResponse()
 	if err != nil {
 		return zgrab2.TryGetScanStatus(err), nil, err
+	}
+	// Quit early if no valid response
+	// OR save it to return later
+	sr := VerifyPOP3Contents(banner)
+	if sr == zgrab2.SCAN_PROTOCOL_ERROR {
+		return sr, nil, fmt.Errorf("Invalid POP3 banner: %s", banner)
 	}
 	result.Banner = banner
 	if scanner.config.SendHELP {
@@ -239,5 +267,5 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 		}
 		result.QUIT = ret
 	}
-	return zgrab2.SCAN_SUCCESS, result, nil
+	return sr, result, nil
 }

@@ -16,8 +16,9 @@ import (
 	"strings"
 
 	"encoding/json"
+
+	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 )
 
 const (
@@ -279,6 +280,11 @@ func (m *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
 }
 
+// Description returns an overview of this module.
+func (m *Module) Description() string {
+	return "Perform a handshake with a PostgreSQL server"
+}
+
 // Validate checks the arguments; on success, returns nil.
 func (f *Flags) Validate(args []string) error {
 	return nil
@@ -317,11 +323,6 @@ func (s *Scanner) GetName() string {
 // GetTrigger returns the Trigger defined in the Flags.
 func (s *Scanner) GetTrigger() string {
 	return s.Config.Trigger
-}
-
-// GetPort returns the port being scanned.
-func (s *Scanner) GetPort() uint {
-	return s.Config.Port
 }
 
 // DoSSL attempts to upgrade the connection to SSL, returning an error on failure.
@@ -374,23 +375,27 @@ func (s *Scanner) getDefaultKVPs() map[string]string {
 }
 
 // Scan does the actual scanning. It opens up to four connections:
-// 1. Sends a bogus protocol version in hopes of getting a list of
-//    supported protcols back. Results here are supported_versions and
-//    and tls (* if applicable).
-// 2. Send a too-high protocol version (255.255) to get full error
-//    message, including line numbers, which could be useful for probing
-//    server version. This is where it gets the protcol_error result.
-// 3. Send a StartupMessage with a valid protocol version (by default
-//    3.0, but this can be overridden on the command line), but omit the
-//    user field. This is where it gets the startup_error result.
-// 4. Only sent if at least one of user/database/application-name
-//    command line flags are provided. Does the same as #3, but includes
-//    any/all of user/database/application-name. This is where it gets
-//    backend_key_data, server_parameters, authentication_mode,
-//    transaction_status and user_startup_error.
 //
-// * NOTE: TLS is only used for the first connection, and then only if
-//   both client and server support it.
+//  1. Sends a bogus protocol version in hopes of getting a list of
+//     supported protcols back. Results here are supported_versions and
+//     and tls (* if applicable).
+//
+//  2. Send a too-high protocol version (255.255) to get full error
+//     message, including line numbers, which could be useful for probing
+//     server version. This is where it gets the protcol_error result.
+//
+//  3. Send a StartupMessage with a valid protocol version (by default
+//     3.0, but this can be overridden on the command line), but omit the
+//     user field. This is where it gets the startup_error result.
+//
+//  4. Only sent if at least one of user/database/application-name
+//     command line flags are provided. Does the same as #3, but includes
+//     any/all of user/database/application-name. This is where it gets
+//     backend_key_data, server_parameters, authentication_mode,
+//     transaction_status and user_startup_error.
+//
+//     - NOTE: TLS is only used for the first connection, and then only if
+//     both client and server support it.
 func (s *Scanner) Scan(t zgrab2.ScanTarget) (status zgrab2.ScanStatus, result interface{}, thrown error) {
 	var results Results
 
@@ -538,7 +543,7 @@ func (s *Scanner) Scan(t zgrab2.ScanTarget) (status zgrab2.ScanStatus, result in
 // the postgres module with the zgrab2 framework.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("postgres", "Postgres", "Grab a Postgres handshake", 5432, &module)
+	_, err := zgrab2.AddCommand("postgres", "Postgres", module.Description(), 5432, &module)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zgrab2"
 )
 
 // Flags holds the command-line configuration for the modbus scan module.
@@ -52,7 +52,7 @@ type Scanner struct {
 // RegisterModule registers the zgrab2 module.
 func RegisterModule() {
 	var module Module
-	_, err := zgrab2.AddCommand("modbus", "modbus", "Probe for modbus", 502, &module)
+	_, err := zgrab2.AddCommand("modbus", "modbus", module.Description(), 502, &module)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,6 +66,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Probe for Modbus devices, usually PLCs as part of a SCADA system"
 }
 
 // Validate checks that the flags are valid.
@@ -113,11 +118,6 @@ func (scanner *Scanner) Protocol() string {
 	return "modbus"
 }
 
-// GetPort returns the port being scanned.
-func (scanner *Scanner) GetPort() uint {
-	return scanner.config.Port
-}
-
 // Conn wraps the connection state (more importantly, it provides the interface used by the old zgrab code, so that it
 // could be taken over as-is).
 type Conn struct {
@@ -131,11 +131,13 @@ func (c *Conn) getUnderlyingConn() net.Conn {
 
 // Scan probes for a modbus service.
 // It connects to the configured TCP port (default 502) and sends a packet with:
-//	 UnitID = <flags.UnitID, default 0>
-//   FunctionCode = 0x2B: Encapsulated Interface Transport)
-//   MEI Type = 0x0E: Read Device Info
-//   Category = 0x01: Basic
-//	 ObjectID = <flags.ObjectID, default 0: VendorName>
+//
+//		 UnitID = <flags.UnitID, default 0>
+//	  FunctionCode = 0x2B: Encapsulated Interface Transport)
+//	  MEI Type = 0x0E: Read Device Info
+//	  Category = 0x01: Basic
+//		 ObjectID = <flags.ObjectID, default 0: VendorName>
+//
 // If the response is not a valid modbus response to this packet, then fail with a SCAN_PROTOCOL_ERROR.
 // Otherwise, return the parsed response and status (SCAN_SUCCESS or SCAN_APPLICATION_ERROR)
 func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
@@ -171,10 +173,6 @@ func (scanner *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, inter
 
 	res, err := c.GetModbusResponse()
 	if res == nil {
-		if err == nil {
-			// unreachable
-			log.Fatalf("Unreachable: no result, no error from modbus.GetModbusResponse()")
-		}
 		return zgrab2.TryGetScanStatus(err), nil, err
 	}
 

@@ -3,6 +3,7 @@ package zgrab2
 import (
 	"bufio"
 	"fmt"
+	"io"
 )
 
 // FlagMap is a function that maps a single-bit bitmask (i.e. a number of the
@@ -66,7 +67,7 @@ func GetFlagMapFromList(bits []string) FlagMap {
 
 // FlagsToSet converts an integer flags variable to a set of string labels
 // corresponding to each bit, in the format described by the wiki (see
-// https://github.com/zmap/zgrab2/wiki/Scanner-details).
+// https://github.com/netd-tud/zgrab2/wiki/Scanner-details).
 // The mapping maps the bit mask value (i.e. a number of the form (1 << x)) to
 // the label for that bit.
 // Flags not present in mapping are appended to the unknown list.
@@ -77,7 +78,7 @@ func FlagsToSet(flags uint64, mapping map[uint64]string) (map[string]bool, []uin
 
 // ListFlagsToSet converts an integer flags variable to a set of string labels
 // corresponding to each bit, in the format described by the wiki (see
-// https://github.com/zmap/zgrab2/wiki/Scanner-details).
+// https://github.com/netd-tud/zgrab2/wiki/Scanner-details).
 // The ith entry of labels gives the label for the ith bit (i.e. flags & (1<<i)).
 // Empty strings in labels are treated as unknown, as are bits beyond the end
 // of the list. Unknown flags are appended to the unknown list.
@@ -133,17 +134,27 @@ func WidenMapKeys(input map[int]string) map[uint64]string {
 // results or error.
 type OutputResultsFunc func(results <-chan []byte) error
 
-// OutputResultsFile is an OutputResultsFunc that write results to
-// a filename provided on the command line.
-func OutputResultsFile(results <-chan []byte) error {
-	out := bufio.NewWriter(config.outputFile)
-	defer out.Flush()
+// OutputResultsWriterFunc returns an OutputResultsFunc that wraps an io.Writer
+// in a buffered writer, and uses OutputResults.
+func OutputResultsWriterFunc(w io.Writer) OutputResultsFunc {
+	buf := bufio.NewWriter(w)
+	return func(result <-chan []byte) error {
+		defer buf.Flush()
+		return OutputResults(buf, result)
+	}
+}
+
+// OutputResults writes results to a buffered Writer from a channel.
+func OutputResults(w *bufio.Writer, results <-chan []byte) error {
 	for result := range results {
-		if _, err := out.Write(result); err != nil {
+		if _, err := w.Write(result); err != nil {
 			return err
 		}
-		if err := out.WriteByte('\n'); err != nil {
+		if err := w.WriteByte('\n'); err != nil {
 			return err
+		}
+		if config.Flush {
+			w.Flush()
 		}
 	}
 	return nil

@@ -5,29 +5,31 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
 // ParseCSVTarget takes a record from a CSV-format input file and
-// returns the specified ipnet, domain, and tag, or an error.
+// returns the specified ipnet, domain, tag and port or an error.
 //
-// ZGrab2 input files have three fields:
-//   IP, DOMAIN, TAG
+// ZGrab2 input files have four fields:
+//
+//	IP, DOMAIN, TAG, PORT
 //
 // Each line specifies a target to scan by its IP address, domain
-// name, or both, as well as an optional tag used to determine which
+// name or both, as well as an optional tag used to determine which
 // scanners will be invoked.
 //
+// Port number has been added to the end of the line for compatibility reasons.
 // A CIDR block may be provided in the IP field, in which case the
 // framework expands the record into targets for every address in the
 // block.
 //
 // Trailing empty fields may be omitted.
 // Comment lines begin with #, and empty lines are ignored.
-//
-func ParseCSVTarget(fields []string) (ipnet *net.IPNet, domain string, tag string, err error) {
+func ParseCSVTarget(fields []string) (ipnet *net.IPNet, domain string, tag string, port string, opts []string, err error) {
 	for i := range fields {
 		fields[i] = strings.TrimSpace(fields[i])
 	}
@@ -41,16 +43,33 @@ func ParseCSVTarget(fields []string) (ipnet *net.IPNet, domain string, tag strin
 			return
 		}
 	}
+
+	// len 1 -> only domain
 	if len(fields) > 1 {
 		domain = fields[1]
 	}
+
+	// len 2 -> domain + tag
 	if len(fields) > 2 {
 		tag = fields[2]
 	}
+
+	// len 3 -> domain + tag + port
+	// Use string for port to allow empty port
 	if len(fields) > 3 {
-		err = fmt.Errorf("too many fields: %q", fields)
-		return
+		port = fields[3]
 	}
+
+	if len(fields) > 4 {
+		opts = fields[4:]
+	}
+
+	// WARN:
+	// no we allow infinit many optional fields
+	// if len(fields) > 4 {
+	// 	err = fmt.Errorf("too many fields: %q", fields)
+	// 	return
+	// }
 
 	// For legacy reasons, we also allow targets of the form:
 	// DOMAIN
@@ -102,24 +121,43 @@ func GetTargetsCSV(source io.Reader, ch chan<- ScanTarget) error {
 		if len(fields) == 0 {
 			continue
 		}
-		ipnet, domain, tag, err := ParseCSVTarget(fields)
+
+		ipnet, domain, tag, port, opts, err := ParseCSVTarget(fields)
 		if err != nil {
 			log.Errorf("parse error, skipping: %v", err)
 			continue
 		}
+
 		var ip net.IP
+		var port_uint uint
+		if port != "" {
+			port_int, err := strconv.Atoi(port)
+			port_uint = uint(port_int)
+			if err != nil {
+				log.Errorf("parse error, skipping: %v", err)
+				continue
+			}
+		}
 		if ipnet != nil {
 			if ipnet.Mask != nil {
 				// expand CIDR block into one target for each IP
 				for ip = ipnet.IP.Mask(ipnet.Mask); ipnet.Contains(ip); incrementIP(ip) {
-					ch <- ScanTarget{IP: duplicateIP(ip), Domain: domain, Tag: tag}
+					if port == "" {
+						ch <- ScanTarget{IP: duplicateIP(ip), Domain: domain, Optionals: opts, Tag: tag}
+					} else {
+						ch <- ScanTarget{IP: duplicateIP(ip), Domain: domain, Optionals: opts, Tag: tag, Port: &port_uint}
+					}
 				}
 				continue
 			} else {
 				ip = ipnet.IP
 			}
 		}
-		ch <- ScanTarget{IP: ip, Domain: domain, Tag: tag}
+		if port == "" {
+			ch <- ScanTarget{IP: ip, Domain: domain, Optionals: opts, Tag: tag}
+		} else {
+			ch <- ScanTarget{IP: ip, Domain: domain, Optionals: opts, Tag: tag, Port: &port_uint}
+		}
 	}
 	return nil
 }
