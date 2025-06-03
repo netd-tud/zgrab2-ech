@@ -52,6 +52,8 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 		Protocol:                   "quic",
 		TLSHandshakeAnchorDuration: -1,
 	}
+	details.populateECHConfig(c.configWithEch.TLSConfig.EncryptedClientHelloConfigList)
+
 	// execute any primer function set for the protocol run.
 	// the primer can be used to level networking related bias
 	// such as cache fillings etc.
@@ -101,6 +103,13 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 					}),
 				}
 			})
+
+			parsed, err := parsedRetryList.MarshalBinary()
+			if err != nil {
+				logrus.Warnf("quic: unable to marshal retry config: %v\n", err)
+			} else {
+				details.populateECHConfig(parsed)
+			}
 
 		} else {
 			return nil, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)

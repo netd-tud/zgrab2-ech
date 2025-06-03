@@ -45,6 +45,7 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 		Protocol:                   "tcp",
 		TLSHandshakeAnchorDuration: -1, // denotes unset
 	}
+	details.populateECHConfig(c.configWithEch.EncryptedClientHelloConfigList)
 
 	// execute any primer function set for the protocol run.
 	// the primer can be used to level networking related bias
@@ -112,6 +113,7 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 			if err != nil {
 				return nil, fmt.Errorf("tcp: tls: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
 			}
+			details.populateECHConfig(parsed) // overwrite intial config with the one that worked
 
 			// retry ECH connection with parsed ECH RetryConfig
 			c.configWithEch.EncryptedClientHelloConfigList = parsed

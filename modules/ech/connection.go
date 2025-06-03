@@ -7,6 +7,7 @@ import (
 	"net"
 
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
+	"github.com/sirupsen/logrus"
 
 	"github.com/OmarTariq612/goech"
 )
@@ -49,21 +50,37 @@ type ConnDetails struct {
 	ServerHello                ftls.ServerHelloMsg `json:"server_hello"`
 }
 
-func (c *ConnDetails) populate(cfg *config) {
+func (c *ConnDetails) populateECHConfig(rawList []byte) {
 
-	c.EchVersion = int(cfg.preferenceList[0].Version)
-	c.EchConfigID = int(cfg.preferenceList[0].ConfigID)
-	c.PublicName = string(cfg.preferenceList[0].RawPublicName)
-	c.KemName = uint16(cfg.preferenceList[0].KEM)
-	c.LengthOfPreferenceConfigs = len(cfg.preferenceList)
+	cfgList, err := goech.UnmarshalECHConfigList(rawList)
+	if err != nil {
+		logrus.Warnf("populateECHConfig: unable to unmarshal list: %v\n", err)
+		return
+	}
+
+	if len(cfgList) <= 0 {
+		logrus.Warnf("populateECHConfig: list has zero ECH configs!\n")
+		return
+	}
+
+	cfg := cfgList[0]
+
+	c.EchVersion = int(cfg.Version)
+	c.EchConfigID = int(cfg.ConfigID)
+	c.PublicName = string(cfg.RawPublicName)
+	c.KemName = uint16(cfg.KEM)
+	c.LengthOfPreferenceConfigs = len(cfgList)
 	c.CipherSuites = mapTo(
-		cfg.preferenceList[0].CipherSuites,
+		cfg.CipherSuites,
 		func(cs goech.HpkeSymmetricCipherSuite) string {
 			return cs.String()
 		},
 	)
-	c.MaxNameLen = int(cfg.preferenceList[0].MaxNameLength)
-	c.RawExtensions = cfg.preferenceList[0].RawExtensions
+	c.MaxNameLen = int(cfg.MaxNameLength)
+	c.RawExtensions = cfg.RawExtensions
+}
+
+func (c *ConnDetails) populateHTTPSRR(cfg *config) {
 	c.AlpnList = cfg.alpn
 	c.IPv4Hints = cfg.ipv4hints
 	c.IPv6Hints = cfg.ipv6hints

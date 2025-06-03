@@ -120,7 +120,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	// 1: the scan input, where the base64 encoded ECH config is provided for each domain
 	// 2: by querying the domains HTTPS resource record and parsing the base64 encoded echconfig
 	// 3: or by generating a valid GREASE ECH
-	echConfig, err := s.resolveECHConfig(target, s.config.UseGreaseECH)
+	targetConfig, err := s.resolveECHConfig(target, s.config.UseGreaseECH)
 	if err != nil {
 		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("preparing ECH config: %w", err)
 	}
@@ -154,12 +154,12 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	for _, proto := range s.protos {
 		switch proto {
 		case "h1":
-			protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h1"}, primerFunc))
+			protoIter.Append(newTcpConn(target.Domain, targetConfig.preferenceListRaw, []string{"h1"}, primerFunc))
 
 		case "h2":
-			protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h2"}, primerFunc))
+			protoIter.Append(newTcpConn(target.Domain, targetConfig.preferenceListRaw, []string{"h2"}, primerFunc))
 		case "h3":
-			protoIter.Append(newQuicConn(target.Domain, echConfig.preferenceListRaw, primerFunc))
+			protoIter.Append(newQuicConn(target.Domain, targetConfig.preferenceListRaw, primerFunc))
 		default:
 			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
 		}
@@ -177,7 +177,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 			continue
 		}
 
-		details.populate(echConfig)
+		details.populateHTTPSRR(targetConfig)
 		results = append(results, *details)
 
 	}
