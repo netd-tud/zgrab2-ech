@@ -20,15 +20,16 @@ type RetryConfig struct {
 
 type ConnDetails struct {
 	Protocol                   string              `json:"protocol"`
+	Primer                     string              `json:"conn_primer"`
 	Error                      *string             `json:"error"`
 	EchVersion                 int                 `json:"ech_version"`
 	EchConfigID                int                 `json:"ech_config_id"`
 	PublicName                 string              `json:"ech_public_name"`
-	KemName                    uint16              `json:"kem_name"`
-	LengthOfPreferenceConfigs  int                 `json:"len_preference_list"`
+	KemName                    uint16              `json:"ech_kem_name"`
+	LengthOfPreferenceConfigs  int                 `json:"ech_config_len"`
 	CipherSuites               []string            `json:"ech_cipher_suites"`
-	MaxNameLen                 int                 `json:"max_name_len"`
-	RawExtensions              []byte              `json:"raw_extensions"`
+	MaxNameLen                 int                 `json:"ech_max_name_len"`
+	RawExtensions              []byte              `json:"ech_raw_extensions"`
 	AlpnList                   []string            `json:"alpn_list"`
 	IPv4Hints                  []string            `json:"ipv4_hints"`
 	IPv6Hints                  []string            `json:"ipv6_hints"`
@@ -38,7 +39,7 @@ type ConnDetails struct {
 	TLSHandshakeDuration       int64               `json:"tls_handshake_duration_with_ech"`
 	TLSHandshakeAnchorDuration int64               `json:"tls_handshake_duration_without_ech"`
 	AnchorPeerIP               *string             `json:"tls_handshake_anchor_ip"`
-	ECHAccepted                *bool               `json:"ech_accepted"`
+	ECHAccepted                *bool               `json:"accepted_ech"`
 	TLSHandshakeCompleted      *bool               `json:"tls_handshake_completed"`
 	NegotiatedProto            *string             `json:"negotiated_protocol"`
 	NegotiatedCipher           *string             `json:"negotiated_cipher"`

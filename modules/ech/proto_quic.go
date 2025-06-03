@@ -15,13 +15,13 @@ import (
 
 type quicConn struct {
 	domain           string
-	connPrimer       func() error
+	connPrimer       func(*ConnDetails) error
 	connTimeout      time.Duration
 	configWithEch    *quic.Config
 	configWithoutEch *quic.Config
 }
 
-func newQuicConn(domain string, rawEch []byte, primer func() error) *quicConn {
+func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
 	return &quicConn{
 		domain:      domain,
 		connTimeout: time.Second * 10,
@@ -46,17 +46,19 @@ func newQuicConn(domain string, rawEch []byte, primer func() error) *quicConn {
 
 func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 
+	var details = ConnDetails{
+		Protocol:                   "quic",
+		TLSHandshakeAnchorDuration: -1,
+	}
 	// execute any primer function set for the protocol run.
 	// the primer can be used to level networking related bias
 	// such as cache fillings etc.
 	if c.connPrimer != nil {
-		if err := c.connPrimer(); err != nil {
+		if err := c.connPrimer(&details); err != nil {
 			return nil, fmt.Errorf("primer function: %w", err)
 		}
 	}
 
-	var tlsHandshakeDurationAnchor int64 = -1 // denotes invalid result
-	var anchorPeerIP *string = nil
 	if withValidation {
 		// since we are also measuring how long the TLS handshake took
 		// we need some sort of anchor to compare the measurement against to.
@@ -69,24 +71,35 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 			logrus.Warnf("failed to open QUIC conneciton w/o ECH enabled as timing anchor: %v", err)
 		} else {
 			if connNoECH.TLS != nil && connNoECH.TLS.Conn != nil {
-				tlsHandshakeDurationAnchor = connNoECH.TLS.Conn.TLSHandshakeDuration
+				details.TLSHandshakeAnchorDuration = connNoECH.TLS.Conn.TLSHandshakeDuration
 				if peerIp, _, err := net.SplitHostPort(connNoECH.PeerAddr.String()); err == nil {
-					anchorPeerIP = &peerIp
+					details.AnchorPeerIP = &peerIp
 				}
 			}
 		}
 	}
 
-	var parsedRetryList goech.ECHConfigList
-
 	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
 	if err != nil {
 		var echErr *ftls.ECHRejectionError
 		if errors.As(err, &echErr) {
+			var parsedRetryList goech.ECHConfigList
 			connECH, parsedRetryList, err = c.tryRetryConfig(echErr)
 			if err != nil {
 				return nil, fmt.Errorf("quic: ECH conn with retry config failed: %v", err)
 			}
+
+			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+				return RetryConfig{
+					EchVersion:  int(rt.Version),
+					EchConfigID: int(rt.ConfigID),
+					PublicName:  string(rt.RawPublicName),
+					CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
+						return cs.String()
+					}),
+				}
+			})
+
 		} else {
 			return nil, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)
 		}
@@ -102,32 +115,20 @@ func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
 	}
 
 	transport := "udp"
-	return &ConnDetails{
-		Protocol:                   "h3",
-		IP:                         &ip,
-		Transport:                  &transport, //NOTE: tlsConn.NetConn is nil (really not sure why)
-		TLSVersion:                 versionFromTlsConn(tlsConn),
-		TLSHandshakeDuration:       tlsConn.TLSHandshakeDuration,
-		TLSHandshakeAnchorDuration: tlsHandshakeDurationAnchor,
-		AnchorPeerIP:               anchorPeerIP,
-		ECHAccepted:                echAcceptedFromTlsConn(tlsConn),
-		TLSHandshakeCompleted:      handshakeCompletedFromTlsConn(tlsConn),
-		NegotiatedProto:            protoFromTlsConn(tlsConn),
-		NegotiatedCipher:           cipherFromTlsConn(tlsConn),
-		ClientHelloOuter:           clientHelloOuterFromTlsConn(tlsConn),
-		ClientHelloInner:           clientHelloInnerFromTlsConn(tlsConn),
-		ServerHello:                serverHelloFromTlsConn(tlsConn),
-		RetryConfigs: mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
-			return RetryConfig{
-				EchVersion:  int(rt.Version),
-				EchConfigID: int(rt.ConfigID),
-				PublicName:  string(rt.RawPublicName),
-				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
-					return cs.String()
-				}),
-			}
-		}),
-	}, nil
+
+	details.IP = &ip
+	details.Transport = &transport //NOTE: tlsConn.NetConn is nil (really not sure why
+	details.TLSVersion = versionFromTlsConn(tlsConn)
+	details.TLSHandshakeDuration = tlsConn.TLSHandshakeDuration
+	details.ECHAccepted = echAcceptedFromTlsConn(tlsConn)
+	details.TLSHandshakeCompleted = handshakeCompletedFromTlsConn(tlsConn)
+	details.NegotiatedProto = protoFromTlsConn(tlsConn)
+	details.NegotiatedCipher = cipherFromTlsConn(tlsConn)
+	details.ClientHelloOuter = clientHelloOuterFromTlsConn(tlsConn)
+	details.ClientHelloInner = clientHelloInnerFromTlsConn(tlsConn)
+	details.ServerHello = serverHelloFromTlsConn(tlsConn)
+
+	return &details, nil
 }
 
 func (c *quicConn) listenAndDial(timeout time.Duration, domain string, config *quic.Config) (*quic.Conn, error) {

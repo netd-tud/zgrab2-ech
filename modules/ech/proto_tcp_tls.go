@@ -13,13 +13,13 @@ import (
 type tcpConn struct {
 	proto            string
 	domain           string
-	connPrimer       func() error
+	connPrimer       func(*ConnDetails) error
 	connTimeout      time.Duration
 	configWithEch    *ftls.Config
 	configWithoutEch *ftls.Config
 }
 
-func newTcpConn(domain string, echList []byte, protos []string, primer func() error) *tcpConn {
+func newTcpConn(domain string, echList []byte, protos []string, primer func(*ConnDetails) error) *tcpConn {
 	return &tcpConn{
 		proto:       protos[0],
 		domain:      domain,
@@ -39,11 +39,16 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func() er
 
 func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 
+	var details = ConnDetails{
+		Protocol:                   "tcp",
+		TLSHandshakeAnchorDuration: -1, // denotes unset
+	}
+
 	// execute any primer function set for the protocol run.
 	// the primer can be used to level networking related bias
 	// such as cache fillings etc.
 	if c.connPrimer != nil {
-		if err := c.connPrimer(); err != nil {
+		if err := c.connPrimer(&details); err != nil {
 			return nil, fmt.Errorf("primer function: %w", err)
 		}
 	}
@@ -55,9 +60,6 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 	}
 
 	host := net.JoinHostPort(c.domain, "443")
-
-	var tlsHandshakeDurationAnchor int64 = -1 // denotes invalid result
-	var anchorPeerIP *string
 
 	// tracing the TLS handshake latency requires to compare the latency from the
 	// ECH connection with some base line latency. This base line latency is collected
@@ -74,25 +76,35 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 			return nil, fmt.Errorf("non ECH connection used for latency cmp indicates use of ECH")
 		}
 
-		anchorPeerIP = ipFromTlsConn(baseConn)
-		tlsHandshakeDurationAnchor = baseConn.TLSHandshakeDuration
+		details.AnchorPeerIP = ipFromTlsConn(baseConn)
+		details.TLSHandshakeAnchorDuration = baseConn.TLSHandshakeDuration
 	}
 
 	// try to establish the actual ECH connection. If it fails we check for any
 	// RetryConfig the server send back to us. Should there be any RetryConfig,
 	// we will parse it and try to establish the connection again with the RetryConfig
 	echConn, err := ftls.DialWithDialer(&dialer, "tcp", host, c.configWithEch)
-	var parsedRetryList goech.ECHConfigList
 	if err != nil {
 		if retryConfigs, ok := err.(*ftls.ECHRejectionError); ok {
 			if len(retryConfigs.RetryConfigList) == 0 {
 				return nil, fmt.Errorf("tcp: tls: RetryConfig: server provided empty RetryConfig")
 			}
 
+			var parsedRetryList goech.ECHConfigList
 			parsedRetryList, err = echFromjRetry(retryConfigs.RetryConfigList)
 			if err != nil {
 				return nil, fmt.Errorf("tcp: tls: RetryConfig: failed to parse server provided RetryConfig: %v", err)
 			}
+			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+				return RetryConfig{
+					EchVersion:  int(rt.Version),
+					EchConfigID: int(rt.ConfigID),
+					PublicName:  string(rt.RawPublicName),
+					CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
+						return cs.String()
+					}),
+				}
+			})
 
 			parsed, err := parsedRetryList.MarshalBinary()
 			if err != nil {
@@ -111,30 +123,17 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 	}
 	defer echConn.Close()
 
-	return &ConnDetails{
-		Protocol:                   c.proto,
-		IP:                         ipFromTlsConn(echConn),
-		Transport:                  transportFromTlsConn(echConn),
-		TLSVersion:                 versionFromTlsConn(echConn),
-		TLSHandshakeDuration:       echConn.TLSHandshakeDuration,
-		TLSHandshakeAnchorDuration: tlsHandshakeDurationAnchor,
-		AnchorPeerIP:               anchorPeerIP,
-		ECHAccepted:                echAcceptedFromTlsConn(echConn),
-		TLSHandshakeCompleted:      handshakeCompletedFromTlsConn(echConn),
-		NegotiatedProto:            protoFromTlsConn(echConn),
-		NegotiatedCipher:           cipherFromTlsConn(echConn),
-		ClientHelloOuter:           clientHelloOuterFromTlsConn(echConn),
-		ClientHelloInner:           clientHelloInnerFromTlsConn(echConn),
-		ServerHello:                serverHelloFromTlsConn(echConn),
-		RetryConfigs: mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
-			return RetryConfig{
-				EchVersion:  int(rt.Version),
-				EchConfigID: int(rt.ConfigID),
-				PublicName:  string(rt.RawPublicName),
-				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
-					return cs.String()
-				}),
-			}
-		}),
-	}, nil
+	details.IP = ipFromTlsConn(echConn)
+	details.Transport = transportFromTlsConn(echConn)
+	details.TLSVersion = versionFromTlsConn(echConn)
+	details.TLSHandshakeDuration = echConn.TLSHandshakeDuration
+	details.ECHAccepted = echAcceptedFromTlsConn(echConn)
+	details.TLSHandshakeCompleted = handshakeCompletedFromTlsConn(echConn)
+	details.NegotiatedProto = protoFromTlsConn(echConn)
+	details.NegotiatedCipher = cipherFromTlsConn(echConn)
+	details.ClientHelloOuter = clientHelloOuterFromTlsConn(echConn)
+	details.ClientHelloInner = clientHelloInnerFromTlsConn(echConn)
+	details.ServerHello = serverHelloFromTlsConn(echConn)
+
+	return &details, nil
 }

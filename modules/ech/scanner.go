@@ -122,18 +122,25 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	}
 
 	// this function will be called before each measurement
-	var primerFunc = func() error { return nil }
+	var primerFunc = func(details *ConnDetails) error {
+		details.Primer = "none"
+		return nil
+	}
+
 	switch *s.config.ConnectionPrimer {
 	case "tcp":
-		primerFunc = func() error {
+		primerFunc = func(details *ConnDetails) error {
+			details.Primer = "tcp"
 			return primeTCPConn(target.Domain)
 		}
 	case "tls":
-		primerFunc = func() error {
+		primerFunc = func(details *ConnDetails) error {
+			details.Primer = "tls"
 			return primeWithTLSConn(target.Domain, &ftls.Config{ServerName: target.Domain}, nil)
 		}
 	case "dns":
-		primerFunc = func() error {
+		primerFunc = func(details *ConnDetails) error {
+			details.Primer = "dns"
 			return primeWithDNSConn(target.Domain)
 		}
 	}
