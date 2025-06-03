@@ -50,46 +50,62 @@ __Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`
 The following shows the result for the above command with latency measurements enabled.
 the `data.ech.result` is arranged as list and includes as many connection details as specified protocols. In this case only _h2_ has been specified, thus result has length 1.
 Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ can be found as well as metadata about the ECH configuration used for the connection (prefixed with `ech_`).
+
+### Post Processing of the results
+
+Included in the repository is the `processing.py` script which takes the zgrab2 output and converts it into a polars dataframe (parquet).
+Sinze json to polars dataframe works..it only does so until a certain size. Therefore, the script chunks the input file into smaller pieces, parsing each piece, converting it into parquet and finally concatinating all chunks into a single dataframe. When you are reading this and think "this is stupid", I agree and would be more than happy if you have a better approach! :).
+
+To start the processing run:
+```bash
+$ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
+```
+
+This will produce a `processed.parquet` file you can directly read from polars
 ```json
+
 {
-  "domain": "netd-research-one.de",
+  "domain": "tartetryon.com",
   "data": {
     "ech": {
       "status": "success",
       "protocol": "ech",
       "result": [
         {
-          "protocol": "h2",
+          "timestamp": "2025-06-03T14:23:47.320919+02:00",
+          "domain": "tartetryon.com",
+          "protocol": "tcp",
+          "conn_primer": "dns",
           "error": null,
           "ech_version": 65037,
-          "ech_config_id": 124,
+          "ech_config_id": 186,
           "ech_public_name": "cloudflare-ech.com",
-          "kem_name": 32,
-          "len_preference_list": 1,
+          "ech_kem_name": 32,
+          "ech_config_len": 1,
           "ech_cipher_suites": [
             "{(cipher) kdf: SHA256, aead: AES128GCM}"
           ],
-          "max_name_len": 0,
-          "raw_extensions": "",
+          "ech_max_name_len": 0,
+          "ech_raw_extensions": "",
           "alpn_list": [
             "h3",
             "h2"
           ],
           "ipv4_hints": [
-            "104.21.19.97",
-            "172.67.185.187"
+            "162.159.140.118",
+            "172.66.0.116"
           ],
           "ipv6_hints": [
-            "2606:4700:3034::6815:1361",
-            "2606:4700:3034::ac43:b9bb"
+            "2606:4700:7::75",
+            "2a06:98c1:58::75"
           ],
-          "ip": "172.67.185.187",
+          "ip": "172.66.0.116",
           "transport": "tcp",
           "tls_version": "TLS 1.3",
-          "tls_handshake_duration_with_ech": 34,
-          "tls_handshake_duration_without_ech": -1,
-          "tls_handshake_anchor_ip": null,
-          "ech_accepted": true,
+          "tls_handshake_duration_with_ech": 20,
+          "tls_handshake_duration_without_ech": 14,
+          "tls_handshake_anchor_ip": "172.66.0.116",
+          "accepted_ech": true,
           "tls_handshake_completed": true,
           "negotiated_protocol": "h2",
           "negotiated_cipher": "TLS_CHACHA20_POLY1305_SHA256",
@@ -97,8 +113,8 @@ Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ c
           "client_hello_outer": {
             "original": null,
             "vers": 771,
-            "random": "5sgu5N2l3JfE8D3GJ6bVHjLIPeeXZuxozdzG14cZFZ4=",
-            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "random": "/wlB9DYFe2NO6rSAEnxLJYMapuj0DKJf3m8opnW0yy8=",
+            "session_id": "GHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uw=",
             "cipher_suites": [
               4867,
               4865,
@@ -151,15 +167,15 @@ Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ c
           "client_hello_inner": {
             "original": null,
             "vers": 771,
-            "random": "iHvCndbRghQltxFWY9/5ThQKRNyDy89GnwqCNzky38c=",
-            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "random": "nNvTLBHl/z7CjAh023pt1Yrd7vAeDeo+p7v00sG8Ep4=",
+            "session_id": "GHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uw=",
             "cipher_suites": [
               4867,
               4865,
               4866
             ],
             "compression_methods": "AA==",
-            "server_name": "netd-research-one.de",
+            "server_name": "tartetryon.com",
             "ocsp_stampling": true,
             "supported_curves": [
               25497,
@@ -203,10 +219,10 @@ Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ c
             "encrypted_client_hello": null
           },
           "server_hello": {
-            "original": "...",
+            "original": "AgAEtgMD/Te0qOj6ChSPYGxrPml7Nw+uPCpkDbt51lwEO+ivVVUgGHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uwTAwAEbgAzBGRjmQRgRHsSLxcZGSGwXxYkFB5FLJDGN66H3gA3pgGO9c0DRWAp+h6EhXBx7Ik7IFdovQxncbepYAD+z8xl+UnRg6Zu/HXZzvdKgQtHDSEGIFNxQOmn/l2FeN4/lFBjwQ4geoqYfzhlFSTAMAZ9f7lLeNkE6e6BYVobBBKAPcV7LS2WpheJ0efhkowsft7wbaz4p9lq1wNGuLRvlqBsMn0UEX18ywpn8mLkjREIT3S9bLbMp2LKh8uZT92JoH1v4oWwizV59SSNMGTDZks0t3LVHy46muLr92p2eMo+rECFARtxU+Nh3jrJUcifes2MAqedmXjR7sQWZWcMtW56QmK0gBSlUMbt/LPhSANjUCLqGLvhQKz1fBYrqu0M5u8ZmqbpSpuJCLYtYPUVNQYF5GlaLiDxYMmsXdx/Cpd6vemH9ddPxUlTyXOgMAMfxnO35uMsznI3n5nvizQGcM6RFFmdV+EqEcF6SzC3u35z17IRybRsp2YtaL04CMA4b+1VawywIEYBF7greo6cq2D5WJcfh6kwoqv0JQodTVrZvlL1p77eS0Ns0c1r/vDwWPiRrVPNum7TbQWFzJ+PLNlXIbzJOeFYVxGqXw+mZvj1qq7ba9h6QPL3VJs9YGbeWk5QWhqijTBFyc5b7224LH/R+QkDXwTYigZM+iyBzFzMmmXDaJaiQEKzLGB2PEVkM/d9KRfnvM9QWhXm4aEA74X/+UbBHy7PhmIsSFSnKtuF9+cwvcEPLjcvlqtmcUMLzk83KKcbdWk/kWYQZK+nrfxK/pBoqjChpu8zijoaZ4RAefOLFL/fcgBbn1hM0ooxMxUqYhUGMa9jDhRWJHar5Zxe+9sv4Rf4cpp7lXvBGIyJ2AcdKuX+qwWvmnWgOAJPW5n0MM8T1fSHeL0tE21dEmA1GL3zwBkvpgaQTEKyHEF0SRv/UJTWEU02SSfDemCfr3+huWFJo4pP3eJbTotcq6zC7zaBMPz6pSVWalmd9+y6ewN9oabpR+oJr7ASPKiFnFj8eYQuwbOaxGZI+FDSMFtZJSIYKb1LSfy1oJYYhRVCXnBWhwjbGmBJTwcXi73QENrA10vBlnw45F+59TpgL7IngJ0zKd8yIho++ImKITs9M/djndppetvRmMhEZxC//IgtbinRzl/liYvpABV8M87hUf4B5z2YFZk55PUnckSQpE6ayZsyrFn7/iV0XAEQIvcFk0Lh5zmpSjJc6BL+XQFsIZAmrUMtD/etKKj5kZMKLxTVsNulqT+U+D9e7w3dH1kdd5FDCQ6hQq5wu8Afjwv9JL6Y+hvtyNeAfZU6E/+q2IHPvulyRX5MQT4G0J8mOO9oqQtHguDLggjtZ/bhqZbMIr4Xp5I8xfOOLd/e9G7h96OPxntE65J3FpaVqOMJpk+DNCMT1U8WA3nBmGUd3CfepBFOmFrQrKsoczPWM51g2umpX5EbrUFK+kt5hXyFm1NjVmKop/QhCHaXnJPnUEaiE55JYl9YLAArAAIDBA==",
             "vers": 771,
-            "random": "iGAX38cgF6yer0AklmRn3yb0z4hKGf1VruYoENfzos8=",
-            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "random": "/Te0qOj6ChSPYGxrPml7Nw+uPCpkDbt51lwEO+ivVVU=",
+            "session_id": "GHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uw=",
             "cipher_suite": 4867,
             "compression_method": 0,
             "ocsp_stampling": false,
@@ -226,8 +242,9 @@ Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ c
           }
         }
       ],
-      "timestamp": "2025-06-03T10:36:03+02:00"
+      "timestamp": "2025-06-03T14:23:47+02:00"
     }
   }
 }
+
 ```
