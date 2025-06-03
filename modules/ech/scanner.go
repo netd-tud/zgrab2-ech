@@ -3,10 +3,10 @@ package ech
 import (
 	"errors"
 	"fmt"
-	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"strings"
-	"sync/atomic"
 	"time"
+
+	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 
 	"github.com/netd-tud/zgrab2"
 	log "github.com/sirupsen/logrus"
@@ -28,7 +28,7 @@ type Flags struct {
 	zgrab2.BaseFlags
 
 	ConnectionPrimer *string `long:"conn-primer" default:"none" description:"before each measurement connection perform either of (tcp-conn, dns-conn, tls-conn) to target domain"`
-	Protocols        *string `long:"protos" default:"all" description:"measure only single (h1,h2,h3)"`
+	Protocols        *string `long:"protos" default:"h1,h2,h3" description:"comma separated list of protocols (h1,h2,h3)"`
 	UseGreaseECH     bool    `long:"greased" description:"don't query HTTPS RR for ECH config, but generate and use grease ECH for the connection"`
 
 	MeasureHandshakeLatency bool `long:"measure-latency" description:"Additionally perform conn w/o ECH enabled to validate timing"`
@@ -47,8 +47,8 @@ func (f *Flags) Help() string {
 }
 
 type Scanner struct {
-	config       *Flags
-	logicalClock atomic.Int64
+	config *Flags
+	protos []string
 }
 
 // NewScanner implements zgrab2.ScanModule.
@@ -74,6 +74,8 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 	}
 
 	s.config = f
+
+	s.protos = strings.Split(*s.config.Protocols, ",")
 
 	return nil
 }
@@ -138,20 +140,18 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 
 	var protoIter = newProtoIter(s.config.MeasureHandshakeLatency)
 
-	switch *s.config.Protocols {
-	case "none":
-		protoIter.Append(
-			newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h1"}, primerFunc),
-			newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h2"}, primerFunc),
-			newQuicConn(target.Domain, echConfig.preferenceListRaw, primerFunc),
-		)
-	case "h1":
-		protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h1"}, primerFunc))
+	for _, proto := range s.protos {
+		switch proto {
+		case "h1":
+			protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h1"}, primerFunc))
 
-	case "h2":
-		protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h2"}, primerFunc))
-	case "h3":
-		protoIter.Append(newQuicConn(target.Domain, echConfig.preferenceListRaw, primerFunc))
+		case "h2":
+			protoIter.Append(newTcpConn(target.Domain, echConfig.preferenceListRaw, []string{"h2"}, primerFunc))
+		case "h3":
+			protoIter.Append(newQuicConn(target.Domain, echConfig.preferenceListRaw, primerFunc))
+		default:
+			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
+		}
 	}
 
 	var results []ConnDetails = make([]ConnDetails, 0, 1)
