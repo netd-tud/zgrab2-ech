@@ -104,23 +104,24 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("input: scan target has no domain/IP")
 	}
 
+	var targetStr = target.Domain
 	if target.IP.String() != "" && target.Domain == "" {
-		target.Domain = target.IP.String()
+		targetStr = target.IP.String()
 	}
 
 	if strings.HasPrefix(target.Domain, "https://") {
-		target.Domain = strings.TrimPrefix(target.Domain, "https://")
+		targetStr = strings.TrimPrefix(target.Domain, "https://")
 	}
 
 	if strings.HasPrefix(target.Domain, "http://") {
-		target.Domain = strings.TrimPrefix(target.Domain, "http://")
+		targetStr = strings.TrimPrefix(target.Domain, "http://")
 	}
 
 	// the ECH config can be gathered by either:
 	// 1: the scan input, where the base64 encoded ECH config is provided for each domain
 	// 2: by querying the domains HTTPS resource record and parsing the base64 encoded echconfig
 	// 3: or by generating a valid GREASE ECH
-	targetConfig, err := s.resolveECHConfig(target, s.config.UseGreaseECH)
+	targetConfig, err := s.resolveECHConfig(target, targetStr, s.config.UseGreaseECH)
 	if err != nil {
 		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("preparing ECH config: %w", err)
 	}
@@ -140,12 +141,12 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	case "tls":
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "tls"
-			return primeWithTLSConn(target.Domain, &ftls.Config{ServerName: target.Domain}, nil)
+			return primeWithTLSConn(targetStr, &ftls.Config{ServerName: targetStr}, nil)
 		}
 	case "dns":
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "dns"
-			return primeWithDNSConn(target.Domain)
+			return primeWithDNSConn(targetStr)
 		}
 	}
 
@@ -154,12 +155,12 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	for _, proto := range s.protos {
 		switch proto {
 		case "h1":
-			protoIter.Append(newTcpConn(target.Domain, targetConfig.preferenceListRaw, []string{"h1"}, primerFunc))
+			protoIter.Append(newTcpConn(targetStr, targetConfig.preferenceListRaw, []string{"h1"}, primerFunc))
 
 		case "h2":
-			protoIter.Append(newTcpConn(target.Domain, targetConfig.preferenceListRaw, []string{"h2"}, primerFunc))
+			protoIter.Append(newTcpConn(targetStr, targetConfig.preferenceListRaw, []string{"h2"}, primerFunc))
 		case "h3":
-			protoIter.Append(newQuicConn(target.Domain, targetConfig.preferenceListRaw, primerFunc))
+			protoIter.Append(newQuicConn(targetStr, targetConfig.preferenceListRaw, primerFunc))
 		default:
 			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
 		}
@@ -192,15 +193,15 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 // resolveECHConfig generates or queries a working ECH config for the given ScanTarget.
 // It is either parsed from optinals from the scanner's input, fetched from the HTTPS RR,
 // or is generated as grease ECH.
-func (s *Scanner) resolveECHConfig(target zgrab2.ScanTarget, greased bool) (*config, error) {
+func (s *Scanner) resolveECHConfig(target zgrab2.ScanTarget, targetStr string, greased bool) (*config, error) {
 	if !greased {
 		switch {
 		case target.Optionals != nil && len(target.Optionals) > 0:
 			return fromOptionals(target.Optionals)
 		default:
-			answers, err := defaultResolver.https(target.Domain)
+			answers, err := defaultResolver.https(targetStr)
 			if err != nil {
-				log.Errorf("[%s] failed to fetch HTTPS resource record: %v", target.Domain, err)
+				log.Errorf("[%s] failed to fetch HTTPS resource record: %v", targetStr, err)
 				return nil, fmt.Errorf("dns: unable to resolve HTTPS RR for target: %v", err)
 			}
 
@@ -212,7 +213,7 @@ func (s *Scanner) resolveECHConfig(target zgrab2.ScanTarget, greased bool) (*con
 		}
 	}
 
-	return fromGreaseECH(target.Domain)
+	return fromGreaseECH(targetStr)
 }
 
 func Register() {

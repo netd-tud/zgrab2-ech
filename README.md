@@ -1,9 +1,8 @@
 # ECH Module Scanner
 
-```
-The ECH module can be used to scan domains/IPs and detect EncryptedClientHello Endpoints.
+
+> The ECH module can be used to scan domains/IPs and detect EncryptedClientHello Endpoints.
 More specifically, this module tries to identify whether a given domain/IP hosts some service that is capable of establishing an EncryptedClientHello extension as speficied in [Draft-ietf-tls-esni-24](https://datatracker.ietf.org/doc/draft-ietf-tls-esni/).
-```
 
 ## Scanner workflow
 
