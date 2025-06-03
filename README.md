@@ -1,198 +1,233 @@
-ZGrab 2.0
-=========
+# ECH Module Scanner
 
-ZGrab is a fast, modular application-layer network scanner designed for completing large Internet-wide surveys. ZGrab is built to work with ZMap (ZMap identifies L4 responsive hosts, ZGrab performs in-depth, follow-up L7 handshakes). Unlike many other network scanners, ZGrab outputs detailed transcripts of network handshakes (e.g., all messages exchanged in a TLS handshake) for offline analysis.  
-
-ZGrab 2.0 contains a new, modular ZGrab framework, which fully supersedes https://github.com/zmap/zgrab.
-
-## Installation
-
-### With Docker
-
-You can run ZGrab 2.0 with our official Docker image. For example, to scan a single website using the HTTP module, you can use:
-
-```shell
-echo 'example.com' | docker run --rm -i ghcr.io/zmap/zgrab2 http
+```
+The ECH module can be used to scan domains/IPs and detect EncryptedClientHello Endpoints.
+More specifically, this module tries to identify whether a given domain/IP hosts some service that is capable of establishing an EncryptedClientHello extension as speficied in [Draft-ietf-tls-esni-24](https://datatracker.ietf.org/doc/draft-ietf-tls-esni/).
 ```
 
-For more complex scanning scenarios, such as using multiple modules or custom configurations, you can create a configuration file and pass it to the container:
+## Scanner workflow
 
-```shell
-docker run --rm -i -v /path/to/your/config.ini:/config.ini ghcr.io/zmap/zgrab2 multiple -c /config.ini
+The scanner imiates an ECH enabled client by supplying a correct/valid ECH configuration during the TLS handshake in the ClientHello message. Based on the specified options the scanner opens a network connection (TCP/UDP-Quic)to the target and tries to establish a TLS connection (waits at least until the handshake is finished, or the handshake gets aborted). 
+
+Should the server accept the EncryptedClientHello, the target is marked as _enabled_ and meta-data about the connection is written, such as the __ClientHelloOuter__, the __ClientHelloInner__, and the __ServerHello__. In addition the used __ECH Config__, the targets IP address are logged in the same record.
+
+Should the server indicate ECH rejection but provides __RetryConfigs__ through the _EncryptedExtions_ (part of the TLS specification), the scanner will parse these retry configs and perform a second attempt with the first retry config. Logging of data is the same as before with the addition of logging all retry configs returned by the server.
+
+In the case of any TLS abortion or any other network related errors, the target is marked as _failed_ and no record is logged.
+
+## Measuring TLS handshake latency
+
+In addition to detecting enabled ECH deployments, the scanner can be instructed to measure the time the TLS handshake took. When enabled, an additional network connection of the same protocol is made before the ECH connection. This prior connection has neither a valid nor a _GREASE ECH_ configuration supplied and is used to anchor for comparison. 
+
+Observation of latency measurements have shown that the initial connection might be biased by network related effects such as caching or else. This can result in an increased latency for the inital connection. Observation shows, that this bias is independed of what the initial connection is, and for both ECH connection or non-ECH connection this bias has been observed. To mitigate the bias the scanner accepts a `--conn-primer` flag which specifies a network connection to the target. The primer can be a _tcp_ connection, a _tls_ connection, or a _dns_ query. No information from the primer function is logged but each successful record will indicate which primer was used (none is the default).
+
+
+## Usage
+
+### Input Format
+`zgrab2` expects a list of domains as input, with a single domain per row. Should the ECH configuration be known before the scan it can be provided as optional field behind the domain (ECH config __must__ be encoded as _base64_). If not provided the scanner will default to query the domain's HTTPS resource record and parse the ECH config from there, unless `--greased` is specified.
+
+### Running the scanner
+A simple scan can look like this:
+```bash
+$ echo "netd-research-one.de" | ./zgrab2 ech | zstd > scan.zst
 ```
 
-Replace `/path/to/your/config.ini` with the path to your configuration file on the host machine. See [Multiple Module Usage](#multiple-module-usage) for more details on configurations.
-
-### Building from Source
-
-For Go 1.17 and later you must build from source:
-
-```shell
-git clone https://github.com/netd-tud/zgrab2.git
-cd zgrab2
-make
-./zgrab2
-```
-
-
-For Go 1.16 and below you can install via go get:
-
-You will need to have a valid `$GOPATH` set up, for more information about `$GOPATH`, see https://golang.org/doc/code.html.
-
-Once you have a working `$GOPATH`, run:
-
-```shell
-go get github.com/netd-tud/zgrab2
-```
-
-This will install zgrab under `$GOPATH/src/github.com/netd-tud/zgrab2`
-
-```shell
-cd $GOPATH/src/github.com/netd-tud/zgrab2
-make
-```
-
-## Single Module Usage 
-
-ZGrab2 supports modules. For example, to run the ssh module use
-
-```shell
-./zgrab2 ssh
-```
-
-To retrieve detailed command-line usage and options for a specific module, append `-h` to the command:
+This will scan the provided domain for ECH for the protocols http1, http2 and quic. A more specific measurement might look like this:
 
 ```bash
-./zgrab2 [module] -h
+$ echo "netd-research-one.de" | ./zgrab2 ech \
+    --measure-latency \ # instruct to measure target without ECH
+    --protos h2 \ # only scan using http2
+    --conn-primer dns # before each scan of a target do a DNS query to the target
 ```
 
-This will display the module-specific options, as well as the application-wide options, including usage examples, available flags, and descriptions for each option. 
+__Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`
 
-Module specific options must be included after the module. Application specific options can be specified at any time.
 
-## Input Format
+## Results
 
-Targets are specified with input files or from `stdin`, in CSV format.  Each input line has three fields:
-
-```text
-IP, DOMAIN, TAG
-```
-
-Each line must specify `IP`, `DOMAIN`, or both.  If only `DOMAIN` is provided, scanners perform a DNS hostname lookup to determine the IP address.  If both `IP` and `DOMAIN` are provided, scanners connect to `IP` but use `DOMAIN` in protocol-specific contexts, such as the HTTP HOST header and TLS SNI extension.
-
-If the `IP` field contains a CIDR block, the framework will expand it to one target for each IP address in the block.
-
-The `TAG` field is optional and used with the `--trigger` scanner argument.
-
-Unused fields can be blank, and trailing unused fields can be omitted entirely.  For backwards compatibility, the parser allows lines with only one field to contain `DOMAIN`.
-
-These are examples of valid input lines:
-
-```text
-10.0.0.1
-domain.com
-10.0.0.1, domain.com
-10.0.0.1, domain.com, tag
-10.0.0.1, , tag
-, domain.com, tag
-192.168.0.0/24, , tag
-
-```
-
-## Multiple Module Usage
-
-To run a scan with multiple modules, a `.ini` file must be used with the `multiple` module. Below is an example `.ini` file with the corresponding zgrab2 command. 
-
-***multiple.ini***
-```ini
-[Application Options]
-output-file="output.txt"
-input-file="input.txt"
-[http]
-name="http80"
-port=80
-endpoint="/"
-[http]
-name="http8080"
-port=8080
-endpoint="/"
-[ssh]
-port=22
-```
-```shell
-./zgrab2 multiple -c multiple.ini
-```
-`Application Options` must be the initial section name. Other section names should correspond exactly to the relevant zgrab2 module name. The default name for each module is the command name. If the same module is to be used multiple times then `name` must be specified and unique. 
-
-Multiple module support is particularly powerful when combined with input tags and the `--trigger` scanner argument. For example, this input contains targets with two different tags:
-
-```text
-141.212.113.199, , tagA
-216.239.38.21, censys.io, tagB
-```
-
-Invoking zgrab2 with the following `multiple` configuration will perform an SSH grab on the first target above and an HTTP grab on the second target:
-
-```ini
-[ssh]
-trigger="tagA"
-name="ssh22"
-port=22
-
-[http]
-trigger="tagB"
-name="http80"
-port=80
-```
-
-## Adding New Protocols 
-
-Add module to modules/ that satisfies the following interfaces: `Scanner`, `ScanModule`, `ScanFlags`.
-
-The flags struct must embed zgrab2.BaseFlags. In the modules `init()` function the following must be included. 
-
-```go
-func init() {
-    var newModule NewModule
-    _, err := zgrab2.AddCommand("module", "short description", "long description of module", portNumber, &newModule)
-    if err != nil {
-        log.Fatal(err)
+The following shows the result for the above command with latency measurements enabled.
+the `data.ech.result` is arranged as list and includes as many connection details as specified protocols. In this case only _h2_ has been specified, thus result has length 1.
+Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ can be found as well as metadata about the ECH configuration used for the connection (prefixed with `ech_`).
+```json
+{
+  "domain": "netd-research-one.de",
+  "data": {
+    "ech": {
+      "status": "success",
+      "protocol": "ech",
+      "result": [
+        {
+          "protocol": "h2",
+          "error": null,
+          "ech_version": 65037,
+          "ech_config_id": 124,
+          "ech_public_name": "cloudflare-ech.com",
+          "kem_name": 32,
+          "len_preference_list": 1,
+          "ech_cipher_suites": [
+            "{(cipher) kdf: SHA256, aead: AES128GCM}"
+          ],
+          "max_name_len": 0,
+          "raw_extensions": "",
+          "alpn_list": [
+            "h3",
+            "h2"
+          ],
+          "ipv4_hints": [
+            "104.21.19.97",
+            "172.67.185.187"
+          ],
+          "ipv6_hints": [
+            "2606:4700:3034::6815:1361",
+            "2606:4700:3034::ac43:b9bb"
+          ],
+          "ip": "172.67.185.187",
+          "transport": "tcp",
+          "tls_version": "TLS 1.3",
+          "tls_handshake_duration_with_ech": 34,
+          "tls_handshake_duration_without_ech": -1,
+          "tls_handshake_anchor_ip": null,
+          "ech_accepted": true,
+          "tls_handshake_completed": true,
+          "negotiated_protocol": "h2",
+          "negotiated_cipher": "TLS_CHACHA20_POLY1305_SHA256",
+          "retry_configs": null,
+          "client_hello_outer": {
+            "original": null,
+            "vers": 771,
+            "random": "5sgu5N2l3JfE8D3GJ6bVHjLIPeeXZuxozdzG14cZFZ4=",
+            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "cipher_suites": [
+              4867,
+              4865,
+              4866
+            ],
+            "compression_methods": "AA==",
+            "server_name": "cloudflare-ech.com",
+            "ocsp_stampling": true,
+            "supported_curves": [
+              25497,
+              29,
+              23,
+              24,
+              25
+            ],
+            "supported_points": null,
+            "ticket_supported": false,
+            "session_ticket": null,
+            "supported_signature_algorithms": [
+              2052,
+              1027,
+              2055,
+              2053,
+              2054,
+              1025,
+              1281,
+              1537,
+              1283,
+              1539,
+              513,
+              515
+            ],
+            "supported_signature_algorithms_cert": null,
+            "secure_renegotation_supported": false,
+            "secure_renegotation": null,
+            "extended_master_secret": false,
+            "alpn_protocols": [
+              "h2"
+            ],
+            "scts": true,
+            "supported_versions": [
+              772
+            ],
+            "early_data": false,
+            "psk_modes": null,
+            "psk_binders": null,
+            "quic_transport_parameters": null,
+            "encrypted_client_hello": null
+          },
+          "client_hello_inner": {
+            "original": null,
+            "vers": 771,
+            "random": "iHvCndbRghQltxFWY9/5ThQKRNyDy89GnwqCNzky38c=",
+            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "cipher_suites": [
+              4867,
+              4865,
+              4866
+            ],
+            "compression_methods": "AA==",
+            "server_name": "netd-research-one.de",
+            "ocsp_stampling": true,
+            "supported_curves": [
+              25497,
+              29,
+              23,
+              24,
+              25
+            ],
+            "supported_points": null,
+            "ticket_supported": false,
+            "session_ticket": null,
+            "supported_signature_algorithms": [
+              2052,
+              1027,
+              2055,
+              2053,
+              2054,
+              1025,
+              1281,
+              1537,
+              1283,
+              1539,
+              513,
+              515
+            ],
+            "supported_signature_algorithms_cert": null,
+            "secure_renegotation_supported": false,
+            "secure_renegotation": null,
+            "extended_master_secret": false,
+            "alpn_protocols": [
+              "h2"
+            ],
+            "scts": true,
+            "supported_versions": [
+              772
+            ],
+            "early_data": false,
+            "psk_modes": null,
+            "psk_binders": null,
+            "quic_transport_parameters": null,
+            "encrypted_client_hello": null
+          },
+          "server_hello": {
+            "original": "...",
+            "vers": 771,
+            "random": "iGAX38cgF6yer0AklmRn3yb0z4hKGf1VruYoENfzos8=",
+            "session_id": "o3T3E0QG8qNdHa1r9yGaHmqkwvZcPntx0uaSt1bwv50=",
+            "cipher_suite": 4867,
+            "compression_method": 0,
+            "ocsp_stampling": false,
+            "ticket_supported": false,
+            "secure_renegotation_supported": false,
+            "secure_renegotiation": null,
+            "extended_master_secrete": false,
+            "alpn_protocol": "",
+            "scts": null,
+            "supported_version": 772,
+            "selected_identity_present": false,
+            "selected_identity": 0,
+            "supported_points": null,
+            "encrypted_client_hello": null,
+            "server_name_ack": false,
+            "selected_group": 0
+          }
+        }
+      ],
+      "timestamp": "2025-06-03T10:36:03+02:00"
     }
+  }
 }
 ```
-
-### Output schema
-
-To add a schema for the new module, add a module under schemas, and update [`zgrab2_schemas/zgrab2/__init__.py`](zgrab2_schemas/zgrab2/__init__.py) to ensure that it is loaded.
-
-See [zgrab2_schemas/README.md](zgrab2_schemas/README.md) for details.
-
-### Integration tests
-To add integration tests for the new module, run `integration_tests/new.sh [your_new_protocol_name]`.
-This will add stub shell scripts in `integration_tests/your_new_protocol_name`; update these as needed.
-See [integration_tests/mysql/*](integration_tests/mysql) for an example.
-The only hard requirement is that the `test.sh` script drops its output in `$ZGRAB_OUTPUT/[your-module]/*.json`, so that it can be validated against the schema.
-
-#### How to Run Integration Tests
-
-To run integration tests, you must have [Docker](https://www.docker.com/) and **Python 2** on host installed. Then, you can follow the following steps to run integration tests:
-
-```shell
-go get github.com/jmespath/jp && go build github.com/jmespath/jp
-# or, sudo wget https://github.com/jmespath/jp/releases/download/0.2.1/jp-linux-amd64 -O /usr/local/bin/jp && sudo chmod +x /usr/local/bin/jp
-pip2 install --user zschema
-pip2 install --user -r requirements.txt
-make integration-test
-```
-
-Running the integration tests will generate quite a bit of debug output. To ensure that tests completed successfully, you can check for a successful exit code after the tests complete:
-
-```shell
-echo $?
-0
-```
-
-Refer to our [Github Actions workflow](.github/workflows/integration-test.yml) for an example of how to prepare environment for integration tests.
-
-## License
-ZGrab2.0 is licensed under Apache 2.0 and ISC. For more information, see the LICENSE file.
