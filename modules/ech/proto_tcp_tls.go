@@ -29,10 +29,12 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func(*Con
 			ServerName:                     domain,
 			EncryptedClientHelloConfigList: echList,
 			NextProtos:                     protos,
+			InsecureSkipVerify:             true,
 		},
 		configWithoutEch: &ftls.Config{
-			ServerName: domain,
-			NextProtos: protos,
+			ServerName:         domain,
+			NextProtos:         protos,
+			InsecureSkipVerify: true,
 		},
 	}
 }
@@ -68,7 +70,7 @@ func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
 	if traceHandshakeLatency {
 		baseConn, err := ftls.DialWithDialer(&dialer, "tcp", host, c.configWithoutEch)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled as timing anchor: %v", err)
+			return nil, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled to (host=%s): %v", host, err)
 		}
 		defer baseConn.Close()
 

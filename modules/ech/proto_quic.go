@@ -32,13 +32,15 @@ func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) 
 				ServerName:                     domain,
 				EncryptedClientHelloConfigList: rawEch,
 				NextProtos:                     []string{"h3"},
+				InsecureSkipVerify:             true,
 			},
 		},
 		configWithoutEch: &quic.Config{
 			TLSConfig: &ftls.Config{
-				MinVersion: ftls.VersionTLS13,
-				ServerName: domain,
-				NextProtos: []string{"h3"},
+				MinVersion:         ftls.VersionTLS13,
+				ServerName:         domain,
+				NextProtos:         []string{"h3"},
+				InsecureSkipVerify: true,
 			},
 		},
 	}

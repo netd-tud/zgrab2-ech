@@ -100,8 +100,12 @@ func (s *Scanner) Protocol() string {
 // respective protocol object.
 func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
 
-	if target.Domain == "" {
-		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("input: scan target has no domain")
+	if target.Domain == "" && target.IP.String() == "" {
+		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("input: scan target has no domain/IP")
+	}
+
+	if target.IP.String() != "" && target.Domain == "" {
+		target.Domain = target.IP.String()
 	}
 
 	if strings.HasPrefix(target.Domain, "https://") {
