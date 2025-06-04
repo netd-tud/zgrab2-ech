@@ -36,18 +36,14 @@ build: $(GO_FILES)
 	rm -f $(BUILD_NAME)
 	ln -s cmd/zgrab2/$(BUILD_NAME)$(EXECUTABLE_EXTENSION) $(BUILD_NAME)
 
-docker-runner: clean
-	make -C docker-runner
 
-integration-test: docker-runner
-	rm -rf zgrab-output
-	TEST_MODULES=$(TEST_MODULES) ./integration_tests/test.sh
+HOST=ech.research.netd.cs.tu-dresden.de
 
-integration-test-clean:
-	rm -rf zgrab-output
-	./integration_tests/cleanup.sh
-	make -C docker-runner clean
+deploy: build-linux
+	scp $(BUILD_NAME_LINUX) $(USER)@$(HOST):/mnt/data01/ech-scanner/build
 
+deploy-grease: build-linux
+	scp $(BUILD_NAME_LINUX) $(USER)@$(HOST):/mnt/data01/ech-greased/build
 clean:
 	cd cmd/zgrab2 && go clean
 	rm -f $(BUILD_NAME) $(BUILD_NAME_LINUX)
