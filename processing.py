@@ -29,37 +29,44 @@ class DataFrame():
             if len(data) > 0:
                 yield (f"chunk_last", pl.json_normalize(data, infer_schema_length=1_000_000).rename(
                     lambda c:
-                        c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")))
+                        c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")
+                    ).explode("results").unnest("results")
+                )
         
 
 # break down large file into smaller parquet files
 def chunk_file(file, chunk_dir, size=20_000):
+    print(f"=== Chunking Input File ===")
+    print(f"=> chunking {file} with {size} rows per chunk")
+
     for (name, chunk) in DataFrame().iter_chunks(file, size=size):
         file_path = f"{os.path.join(chunk_dir, name)}.parquet"
         chunk.write_parquet(file_path)
-        print(f"\rprocessed chunk: {name} -> {file_path}.parquet")
+        print(f"==> created: {file_path}.parquet")
 
 
 # load each parquet chunk and combine into single dataframe
 def combine_chunks(directory, schema=None): 
+    print(f"=== Merging Chunks ===")
     ordered = os.listdir(directory)
     ordered.sort()
     filtered = list(filter(lambda n: n.startswith("chunk_"), ordered))
-    print(f"Found {len(filtered)} chunks")
+    print(f"=> found {len(filtered)} chunks")
     
     return pl.concat([pl.read_parquet(os.path.join(directory,file)) for file in filtered], how="diagonal")
 
 def remove_chunks(directory):
+    print(f"=== Deleting Chunks ===")
     ordered = os.listdir(directory)
     ordered.sort()
     filtered = list(filter(lambda n: n.startswith("chunk_"), ordered))
     
     workdir = os.getcwd()
-    print(f"Removing {len(filtered)} chunks in directory: '{os.path.join(workdir, directory)}'")
+    print(f"=> deleting {len(filtered)} chunks from: '{os.path.join(workdir, directory)}'")
     
     for file in filtered:
         file_path = os.path.join(workdir, directory, file)
-        print(f"\tRemoving: {file_path}")
+        print(f"==> deleted: {file_path}")
         os.remove(file_path)
 
 
@@ -72,8 +79,10 @@ def run(file_path, chunk_size=1000):
     print(f"Creating temporary directory for chunking: {temp_dir.name}")
 
     chunk_file(file_path, temp_dir.name, size=chunk_size)
+    print("")
 
     df = combine_chunks(temp_dir.name)
+    print("")
 
     out_path = os.path.join(os.getcwd(), "processed.parquet")
     print(f"Writing final dataframe as parquet to: {out_path}")
