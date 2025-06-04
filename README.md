@@ -57,7 +57,7 @@ This will produce a `processed.parquet` file you can directly read from polars
 ```json
 
 {
-  "domain": "tartetryon.com",
+  "domain": "...",
   "data": {
     "ech": {
       "status": "success",
@@ -65,7 +65,7 @@ This will produce a `processed.parquet` file you can directly read from polars
       "result": [
         {
           "timestamp": "2025-06-03T14:23:47.320919+02:00",
-          "domain": "tartetryon.com",
+          "domain": "...",
           "protocol": "tcp",
           "conn_primer": "dns",
           "error": null,
