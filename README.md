@@ -167,7 +167,7 @@ This will produce a `processed.parquet` file you can directly read from polars
               4866
             ],
             "compression_methods": "AA==",
-            "server_name": "tartetryon.com",
+            "server_name": "...",
             "ocsp_stampling": true,
             "supported_curves": [
               25497,
