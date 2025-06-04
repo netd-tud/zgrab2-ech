@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 

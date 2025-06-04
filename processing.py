@@ -23,6 +23,9 @@ class DataFrame():
                     data.append({"results": json.loads(line)["data"]["ech"]["result"]})
                 except KeyError:
                     continue
+                except:
+                    print(f"Failed to read string to json:\n{line}")
+                    sys.exit(1)
                 counter += 1
                         
             # process leftovers
@@ -46,7 +49,7 @@ def chunk_file(file, chunk_dir, size=20_000):
 
 
 # load each parquet chunk and combine into single dataframe
-def combine_chunks(directory, schema=None): 
+def combine_chunks(directory): 
     print(f"=== Merging Chunks ===")
     ordered = os.listdir(directory)
     ordered.sort()

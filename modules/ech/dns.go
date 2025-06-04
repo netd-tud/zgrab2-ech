@@ -13,8 +13,7 @@ import (
 const defaultMaxRetries = 5
 
 var defaultResolver = resolver{
-	// resolvers:       []string{"8.8.8.8:53", "1.1.1.1:53"},
-	resolvers:       []string{"141.30.1.1:53", "141.76.14.1:53"},
+	resolvers:       []string{"8.8.8.8:53", "1.1.1.1:53"},
 	currentResolver: 0,
 	port:            "53",
 	maxRetries:      defaultMaxRetries,

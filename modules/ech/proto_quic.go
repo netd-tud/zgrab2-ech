@@ -24,7 +24,7 @@ type quicConn struct {
 func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
 	return &quicConn{
 		domain:      domain,
-		connTimeout: time.Second * 10,
+		connTimeout: time.Second * 2,
 		connPrimer:  primer,
 		configWithEch: &quic.Config{
 			TLSConfig: &ftls.Config{

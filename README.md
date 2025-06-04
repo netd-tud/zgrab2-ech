@@ -52,17 +52,6 @@ the `data.ech.result` is arranged as list and includes as many connection detail
 Each result contains all relevant data for tuple (target,protocol), such as the used ECH config, connection metadata, the ClientHelloOuter, ClientHelloInner and ServerHello. 
 
 
-### Post Processing of the results
-
-Included in the repository is the `processing.py` script which takes the zgrab2 output and converts it into a polars dataframe (parquet).
-Sinze json to polars dataframe works..it only does so until a certain size. Therefore, the script chunks the input file into smaller pieces, parsing each piece, converting it into parquet and finally concatinating all chunks into a single dataframe. When you are reading this and think "this is stupid", I agree and would be more than happy if you have a better approach! :).
-
-The resulting dataframe contains connection details per row. This means a scan with two protocols over 100 domainswill produce a dataframe with 200 rows. 100 rows for protocol one, and 100 rows for the second one.
-
-To start the processing run:
-```bash
-$ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
-```
 
 This will produce a `processed.parquet` file you can directly read from polars
 ```json
@@ -250,4 +239,16 @@ This will produce a `processed.parquet` file you can directly read from polars
   }
 }
 
+```
+
+### Post Processing of the results
+
+Included in the repository is the `processing.py` script which takes the zgrab2 output and converts it into a polars dataframe (parquet).
+Sinze json to polars dataframe works..it only does so until a certain size. Therefore, the script chunks the input file into smaller pieces, parsing each piece, converting it into parquet and finally concatinating all chunks into a single dataframe. When you are reading this and think "this is stupid", I agree and would be more than happy if you have a better approach! :).
+
+The resulting dataframe contains connection details per row. This means a scan with two protocols over 100 domainswill produce a dataframe with 200 rows. 100 rows for protocol one, and 100 rows for the second one.
+
+To start the processing run:
+```bash
+$ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
 ```
