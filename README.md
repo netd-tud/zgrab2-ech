@@ -43,6 +43,8 @@ $ echo "netd-research-one.de" | ./zgrab2 ech \
 
 __Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`
 
+### Deploying the scanner
+The scanner can be deployed using the `deploy` or `deploy-grease` make target. Both require a `USER` argument which is the __ssh user__ to use for copying the executable. By default the executable is build for a __linux/amd64__ arch with `ech.research.netd.cs.tu-dresden.de` as the target host. The target host can be changed by supplying the make target with a `HOST` argument.
 
 ## Results
 
