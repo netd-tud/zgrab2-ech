@@ -46,7 +46,7 @@ func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) 
 	}
 }
 
-func (c *quicConn) Test(withValidation bool) (*ConnDetails, error) {
+func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error) {
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),

@@ -39,12 +39,12 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func(*Con
 	}
 }
 
-func (c *tcpConn) Test(traceHandshakeLatency bool) (*ConnDetails, error) {
+func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails, error) {
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
 		Domain:                     c.domain,
-		Protocol:                   "tcp",
+		Protocol:                   c.proto,
 		TLSHandshakeAnchorDuration: -1, // denotes unset
 	}
 	details.populateECHConfig(c.configWithEch.EncryptedClientHelloConfigList)

@@ -90,7 +90,7 @@ func (c *ConnDetails) populateHTTPSRR(cfg *config) {
 }
 
 type ProtoTester interface {
-	Test(timingValidation bool) (*ConnDetails, error)
+	Test(target string, timingValidation bool) (*ConnDetails, error)
 }
 
 type ProtoIter struct {
@@ -114,10 +114,10 @@ func (pi *ProtoIter) Append(protos ...ProtoTester) {
 
 var ErrProtosExhausted = errors.New("no more protocols to test - all failed")
 
-func (pi *ProtoIter) Iter() iter.Seq2[*ConnDetails, error] {
+func (pi *ProtoIter) Iter(target string) iter.Seq2[*ConnDetails, error] {
 	return func(yield func(*ConnDetails, error) bool) {
 		for _, proto := range pi.protos {
-			result, err := proto.Test(pi.timingValidation)
+			result, err := proto.Test(target, pi.timingValidation)
 
 			pi.remaining -= 1
 

@@ -47,13 +47,17 @@ __Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`
 ## Results
 
 The following shows the result for the above command with latency measurements enabled.
-the `data.ech.result` is arranged as list and includes as many connection details as specified protocols. In this case only _h2_ has been specified, thus result has length 1.
-Within a connection detail, the _ClientHelloOuter/Inner_ and the _ServerHello_ can be found as well as metadata about the ECH configuration used for the connection (prefixed with `ech_`).
+the `data.ech.result` is arranged as list and includes as many connection details as specified protocols (in this case only one for _h2_).
+
+Each result contains all relevant data for tuple (target,protocol), such as the used ECH config, connection metadata, the ClientHelloOuter, ClientHelloInner and ServerHello. 
+
 
 ### Post Processing of the results
 
 Included in the repository is the `processing.py` script which takes the zgrab2 output and converts it into a polars dataframe (parquet).
 Sinze json to polars dataframe works..it only does so until a certain size. Therefore, the script chunks the input file into smaller pieces, parsing each piece, converting it into parquet and finally concatinating all chunks into a single dataframe. When you are reading this and think "this is stupid", I agree and would be more than happy if you have a better approach! :).
+
+The resulting dataframe contains connection details per row. This means a scan with two protocols over 100 domainswill produce a dataframe with 200 rows. 100 rows for protocol one, and 100 rows for the second one.
 
 To start the processing run:
 ```bash
@@ -218,7 +222,7 @@ This will produce a `processed.parquet` file you can directly read from polars
             "encrypted_client_hello": null
           },
           "server_hello": {
-            "original": "AgAEtgMD/Te0qOj6ChSPYGxrPml7Nw+uPCpkDbt51lwEO+ivVVUgGHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uwTAwAEbgAzBGRjmQRgRHsSLxcZGSGwXxYkFB5FLJDGN66H3gA3pgGO9c0DRWAp+h6EhXBx7Ik7IFdovQxncbepYAD+z8xl+UnRg6Zu/HXZzvdKgQtHDSEGIFNxQOmn/l2FeN4/lFBjwQ4geoqYfzhlFSTAMAZ9f7lLeNkE6e6BYVobBBKAPcV7LS2WpheJ0efhkowsft7wbaz4p9lq1wNGuLRvlqBsMn0UEX18ywpn8mLkjREIT3S9bLbMp2LKh8uZT92JoH1v4oWwizV59SSNMGTDZks0t3LVHy46muLr92p2eMo+rECFARtxU+Nh3jrJUcifes2MAqedmXjR7sQWZWcMtW56QmK0gBSlUMbt/LPhSANjUCLqGLvhQKz1fBYrqu0M5u8ZmqbpSpuJCLYtYPUVNQYF5GlaLiDxYMmsXdx/Cpd6vemH9ddPxUlTyXOgMAMfxnO35uMsznI3n5nvizQGcM6RFFmdV+EqEcF6SzC3u35z17IRybRsp2YtaL04CMA4b+1VawywIEYBF7greo6cq2D5WJcfh6kwoqv0JQodTVrZvlL1p77eS0Ns0c1r/vDwWPiRrVPNum7TbQWFzJ+PLNlXIbzJOeFYVxGqXw+mZvj1qq7ba9h6QPL3VJs9YGbeWk5QWhqijTBFyc5b7224LH/R+QkDXwTYigZM+iyBzFzMmmXDaJaiQEKzLGB2PEVkM/d9KRfnvM9QWhXm4aEA74X/+UbBHy7PhmIsSFSnKtuF9+cwvcEPLjcvlqtmcUMLzk83KKcbdWk/kWYQZK+nrfxK/pBoqjChpu8zijoaZ4RAefOLFL/fcgBbn1hM0ooxMxUqYhUGMa9jDhRWJHar5Zxe+9sv4Rf4cpp7lXvBGIyJ2AcdKuX+qwWvmnWgOAJPW5n0MM8T1fSHeL0tE21dEmA1GL3zwBkvpgaQTEKyHEF0SRv/UJTWEU02SSfDemCfr3+huWFJo4pP3eJbTotcq6zC7zaBMPz6pSVWalmd9+y6ewN9oabpR+oJr7ASPKiFnFj8eYQuwbOaxGZI+FDSMFtZJSIYKb1LSfy1oJYYhRVCXnBWhwjbGmBJTwcXi73QENrA10vBlnw45F+59TpgL7IngJ0zKd8yIho++ImKITs9M/djndppetvRmMhEZxC//IgtbinRzl/liYvpABV8M87hUf4B5z2YFZk55PUnckSQpE6ayZsyrFn7/iV0XAEQIvcFk0Lh5zmpSjJc6BL+XQFsIZAmrUMtD/etKKj5kZMKLxTVsNulqT+U+D9e7w3dH1kdd5FDCQ6hQq5wu8Afjwv9JL6Y+hvtyNeAfZU6E/+q2IHPvulyRX5MQT4G0J8mOO9oqQtHguDLggjtZ/bhqZbMIr4Xp5I8xfOOLd/e9G7h96OPxntE65J3FpaVqOMJpk+DNCMT1U8WA3nBmGUd3CfepBFOmFrQrKsoczPWM51g2umpX5EbrUFK+kt5hXyFm1NjVmKop/QhCHaXnJPnUEaiE55JYl9YLAArAAIDBA==",
+            "original": "...",
             "vers": 771,
             "random": "/Te0qOj6ChSPYGxrPml7Nw+uPCpkDbt51lwEO+ivVVU=",
             "session_id": "GHlHiaaBG/J06gZ5lKnH2yuF+5YVVZBB1k0xHyMu3uw=",

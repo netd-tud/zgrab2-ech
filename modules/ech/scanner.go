@@ -168,8 +168,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 
 	var results []ConnDetails = make([]ConnDetails, 0, 1)
 
-	start := time.Now()
-	for details, err := range protoIter.Iter() {
+	for details, err := range protoIter.Iter(targetStr) {
 		if err != nil {
 			log.Warnf("Tested protocol returned an error: %v", err)
 			if errors.Is(err, ErrProtosExhausted) {
@@ -183,11 +182,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 
 	}
 
-	if elapsed := time.Since(start).Milliseconds(); elapsed > 3000 {
-		log.Infof("[TIMING] protocol iteration took > 3000ms: %dms", time.Since(start).Milliseconds())
-	}
-
-	return "success", results, nil
+	return zgrab2.SCAN_SUCCESS, results, nil
 }
 
 // resolveECHConfig generates or queries a working ECH config for the given ScanTarget.
