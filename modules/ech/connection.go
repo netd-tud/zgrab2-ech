@@ -25,6 +25,7 @@ type ConnDetails struct {
 	Domain                     string              `json:"domain"`
 	Protocol                   string              `json:"protocol"`
 	Primer                     string              `json:"conn_primer"`
+	PrimerFailed               bool                `json:"conn_primer_failed"`
 	Error                      *string             `json:"error"`
 	EchVersion                 int                 `json:"ech_version"`
 	EchConfigID                int                 `json:"ech_config_id"`

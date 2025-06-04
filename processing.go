@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/netd-tud/zgrab2/lib/output"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -212,6 +213,12 @@ func Process(mon *Monitor) {
 	//Start all the workers
 	for i := 0; i < workers; i++ {
 		go func(i int) {
+			defer func() {
+				if err := recover(); err != nil {
+					logrus.Warnf("Scanner paniced! Panic: %v\n", err)
+				}
+			}()
+
 			for _, scannerName := range orderedScanners {
 				scanner := *scanners[scannerName]
 				scanner.InitPerSender(i)

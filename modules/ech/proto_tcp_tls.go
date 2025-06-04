@@ -6,6 +6,7 @@ import (
 	"time"
 
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
+	"github.com/sirupsen/logrus"
 
 	"github.com/OmarTariq612/goech"
 )
@@ -24,12 +25,12 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func(*Con
 		proto:       protos[0],
 		domain:      domain,
 		connPrimer:  primer,
-		connTimeout: time.Second * 10,
+		connTimeout: time.Second * 2,
 		configWithEch: &ftls.Config{
 			ServerName:                     domain,
 			EncryptedClientHelloConfigList: echList,
 			NextProtos:                     protos,
-			InsecureSkipVerify:             true,
+			InsecureSkipVerify:             true, // allows to use IPs as well
 		},
 		configWithoutEch: &ftls.Config{
 			ServerName:         domain,
@@ -40,6 +41,11 @@ func newTcpConn(domain string, echList []byte, protos []string, primer func(*Con
 }
 
 func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Warnf("tcp: Test call paniced for target: %s: %v\n", target, err)
+		}
+	}()
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
@@ -54,7 +60,8 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	// such as cache fillings etc.
 	if c.connPrimer != nil {
 		if err := c.connPrimer(&details); err != nil {
-			return nil, fmt.Errorf("primer function: %w", err)
+			logrus.Warnf("primer function: %v", err)
+			details.PrimerFailed = true
 		}
 	}
 

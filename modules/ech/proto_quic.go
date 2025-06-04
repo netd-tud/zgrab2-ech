@@ -47,6 +47,11 @@ func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) 
 }
 
 func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Warnf("quic: Test call paniced for target: %s: %v\n", target, err)
+		}
+	}()
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
@@ -61,7 +66,8 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 	// such as cache fillings etc.
 	if c.connPrimer != nil {
 		if err := c.connPrimer(&details); err != nil {
-			return nil, fmt.Errorf("primer function: %w", err)
+			logrus.Warnf("primer function: %v", err)
+			details.PrimerFailed = true
 		}
 	}
 
