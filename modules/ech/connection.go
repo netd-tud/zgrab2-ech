@@ -1,6 +1,7 @@
 package ech
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"iter"
@@ -160,7 +161,7 @@ func primeWithTLSConn(domain string, cfg *ftls.Config, dialer *net.Dialer) error
 	}
 
 	if err != nil {
-		return fmt.Errorf("tcp: tls (primer conn): failed to dial host(=%s): %v", host, err)
+		return fmt.Errorf("primer: failed to open tcp/tls on port 443 to %s: %v", domain, err)
 	}
 	defer conn.Close()
 
@@ -171,9 +172,12 @@ func primeWithTLSConn(domain string, cfg *ftls.Config, dialer *net.Dialer) error
 // based on measurements these function where needed to level / remove networking bias
 // for measuring TLS handshake latencies.
 func primeWithDNSConn(domain string) error {
-	_, err := net.LookupIP(domain)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	_, err := net.DefaultResolver.LookupIP(ctx, "ip", domain)
 	if err != nil {
-		return fmt.Errorf("failed to resolve IP for domain: %v", err)
+		return fmt.Errorf("primer: failed to query IP for %s: %v", domain, err)
 	}
 	return nil
 }
@@ -184,7 +188,7 @@ func primeWithDNSConn(domain string) error {
 func primeTCPConn(domain string) error {
 	conn, err := net.Dial("tcp", net.JoinHostPort(domain, "80"))
 	if err != nil {
-		return fmt.Errorf("failed to open dummy tcp conn: %v", err)
+		return fmt.Errorf("primer: failed to open tcp on port 80 to %s: %v", domain, err)
 	}
 	defer conn.Close()
 
