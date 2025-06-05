@@ -15,7 +15,7 @@ type Module struct{}
 
 // Description implements zgrab2.ScanModule.
 func (m *Module) Description() string {
-	return "Check is EncryptedClientHello is supported by server"
+	return "Check whether EncryptedClientHello is supported by an endpoint"
 }
 
 // NewFlags implements zgrab2.ScanModule.
@@ -125,7 +125,8 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("preparing ECH config: %w", err)
 	}
 
-	// this function will be called before each measurement
+	// this function will be called before each measurement of a target
+	// unless provided its a NOP. Can be used to mitigate certain timing issues
 	var primerFunc = func(details *ConnDetails) error {
 		details.Primer = "none"
 		return nil

@@ -41,7 +41,7 @@ $ echo "netd-research-one.de" | ./zgrab2 ech \
     --conn-primer dns # before each scan of a target do a DNS query to the target
 ```
 
-__Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`
+__Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`, also file does not need to contain domains, can be IP addresses as well in which case the `--greased` flag __must__ be set!
 
 ### Deploying the scanner
 The scanner can be deployed using the `deploy` or `deploy-grease` make target. Both require a `USER` argument which is the __ssh user__ to use for copying the executable. By default the executable is build for a __linux/amd64__ arch with `ech.research.netd.cs.tu-dresden.de` as the target host. The target host can be changed by supplying the make target with a `HOST` argument.
@@ -273,7 +273,11 @@ type ProtoHTTPS struct {
 
 func (https ProtoHTTPS) Test(target string, measureLatency bool) (*ConnDetails, error) {
 
-    var details ConnectionDetails
+    var details  = ConnectionDetails{
+        Timestamp: time.Now(),
+        Target:    target,
+        Protocol:  "https"
+    }
     // write the used ECH config into the scanner result
     details.populateECHConfig(https.tslCfg.EncryptedClientHelloConfigList)
 
