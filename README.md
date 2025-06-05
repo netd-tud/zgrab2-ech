@@ -255,6 +255,8 @@ To start the processing run:
 $ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
 ```
 
+__Note:__ The processing script can be called with an uncompressed (raw) zgrab2 results file or an zstandard compressed file, in which case the file name __must__ end with `.zst`
+
 ## Adding protocols
 
 The ECH module can be extended with different protocols by adding a new `proto_<name>.go` file with some struct that for your protocol that needs to implement the `ProtoTester` interface.

@@ -55,7 +55,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
-		Domain:                     c.domain,
+		Target:                     c.domain,
 		Protocol:                   "quic",
 		TLSHandshakeAnchorDuration: -1,
 	}
