@@ -49,7 +49,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
-		Domain:                     c.domain,
+		Target:                     c.domain,
 		Protocol:                   c.proto,
 		TLSHandshakeAnchorDuration: -1, // denotes unset
 	}
@@ -68,7 +68,6 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	dialer := net.Dialer{
 		Timeout:   c.connTimeout,
 		KeepAlive: c.connTimeout,
-		DualStack: true, // technically not needed because deprecated
 	}
 
 	host := net.JoinHostPort(c.domain, "443")

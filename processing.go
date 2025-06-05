@@ -215,7 +215,7 @@ func Process(mon *Monitor) {
 		go func(i int) {
 			defer func() {
 				if err := recover(); err != nil {
-					logrus.Warnf("Scanner paniced! Panic: %v\n", err)
+					logrus.Warnf("worker paniced! reason: %v\n", err)
 				}
 			}()
 

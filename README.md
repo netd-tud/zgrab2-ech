@@ -254,3 +254,69 @@ To start the processing run:
 ```bash
 $ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
 ```
+
+## Adding protocols
+
+The ECH module can be extended with different protocols by adding a new `proto_<name>.go` file with some struct that for your protocol that needs to implement the `ProtoTester` interface.
+
+If for example we want to add HTTPS as an additional protocol we can do the following:
+```go
+// modules/ech/proto_https.go
+package ech
+
+type ProtoHTTPS struct {
+    tlsCfg *ftls.Config
+}
+
+
+func (https ProtoHTTPS) Test(target string, measureLatency bool) (*ConnDetails, error) {
+
+    var details ConnectionDetails
+    // write the used ECH config into the scanner result
+    details.populateECHConfig(https.tslCfg.EncryptedClientHelloConfigList)
+
+    url := fmt.Sprintf("https://%s/cdn-cgi/trace", target)
+    
+    resp, err := http.Get(url)
+    if err != nil {
+      return nil, err
+    }
+    defer resp.Body.Close()
+
+    // read + parse response body
+    cgiFlags := parse(resp.Body)
+
+    // note this function does not exist and one would need to extend the ConnDetails
+    // if required.
+    details.populateCGIFlags(cgiFlags)
+    
+    return details, nil
+}
+```
+
+
+In the `modules/ech/scanner.go` you need to add your protocol to the `ProtoIter` such that it will be used.
+
+```go
+var protoIter = newProtoIter(s.config.MeasureHandshakeLatency)
+
+for _, proto := range s.protos {
+	switch proto {
+	case "h1":
+        // ...
+	case "h2":
+        // ...
+	case "h3":
+        // ...
+    case "https":
+        protoIter.Append(&ProtoHTTPS{
+            tlsConfig: ftls.Config{
+                ServerName: targetStr,
+                EncryptedClientHelloList: targetConfig.preferneceListRaw
+            },
+        })
+	default:
+		log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
+	}
+}
+``

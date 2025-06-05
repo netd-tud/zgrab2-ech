@@ -23,7 +23,7 @@ type RetryConfig struct {
 
 type ConnDetails struct {
 	Timestamp                  time.Time           `json:"timestamp"`
-	Domain                     string              `json:"domain"`
+	Target                     string              `json:"target"`
 	Protocol                   string              `json:"protocol"`
 	Primer                     string              `json:"conn_primer"`
 	PrimerFailed               bool                `json:"conn_primer_failed"`
