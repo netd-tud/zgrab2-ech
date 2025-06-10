@@ -27,7 +27,7 @@ type Flags struct {
 	zgrab2.BaseFlags
 
 	ConnectionPrimer *string `long:"conn-primer" default:"none" description:"before each measurement connection perform either of (tcp-conn, dns-conn, tls-conn) to target domain"`
-	Protocols        *string `long:"protos" default:"h1,h2,h3" description:"comma separated list of protocols (h1,h2,h3)"`
+	Protocols        *string `long:"protos" default:"h1,h2,h3" description:"comma separated list of protocols (h1,h2,h3) which are used as ALPN value for protocol negotiation during the TLS handshake"`
 	UseGreaseECH     bool    `long:"greased" description:"don't query HTTPS RR for ECH config, but generate and use grease ECH for the connection"`
 
 	MeasureHandshakeLatency bool `long:"measure-latency" description:"Additionally perform conn w/o ECH enabled to validate timing"`
