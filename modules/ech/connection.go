@@ -25,6 +25,7 @@ type ConnDetails struct {
 	Timestamp                  time.Time           `json:"timestamp"`
 	Target                     string              `json:"target"`
 	Protocol                   string              `json:"protocol"`
+	Port                       uint                `json:"port"`
 	Primer                     string              `json:"conn_primer"`
 	PrimerFailed               bool                `json:"conn_primer_failed"`
 	Error                      *string             `json:"error"`

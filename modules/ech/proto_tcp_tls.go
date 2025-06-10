@@ -3,6 +3,7 @@ package ech
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
@@ -14,16 +15,18 @@ import (
 type tcpConn struct {
 	proto            string
 	domain           string
+	port             uint
 	connPrimer       func(*ConnDetails) error
 	connTimeout      time.Duration
 	configWithEch    *ftls.Config
 	configWithoutEch *ftls.Config
 }
 
-func newTcpConn(domain string, echList []byte, protos []string, primer func(*ConnDetails) error) *tcpConn {
+func newTcpConn(domain string, port uint, echList []byte, protos []string, primer func(*ConnDetails) error) *tcpConn {
 	return &tcpConn{
 		proto:       protos[0],
 		domain:      domain,
+		port:        port,
 		connPrimer:  primer,
 		connTimeout: time.Second * 2,
 		configWithEch: &ftls.Config{
@@ -50,6 +53,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	var details = ConnDetails{
 		Timestamp:                  time.Now(),
 		Target:                     c.domain,
+		Port:                       c.port,
 		Protocol:                   c.proto,
 		TLSHandshakeAnchorDuration: -1, // denotes unset
 	}
@@ -70,7 +74,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		KeepAlive: c.connTimeout,
 	}
 
-	host := net.JoinHostPort(c.domain, "443")
+	host := net.JoinHostPort(c.domain, strconv.Itoa(int(c.port)))
 
 	// tracing the TLS handshake latency requires to compare the latency from the
 	// ECH connection with some base line latency. This base line latency is collected

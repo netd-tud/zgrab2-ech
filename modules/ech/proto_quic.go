@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/OmarTariq612/goech"
@@ -15,15 +16,17 @@ import (
 
 type quicConn struct {
 	domain           string
+	port             uint
 	connPrimer       func(*ConnDetails) error
 	connTimeout      time.Duration
 	configWithEch    *quic.Config
 	configWithoutEch *quic.Config
 }
 
-func newQuicConn(domain string, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
+func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
 	return &quicConn{
 		domain:      domain,
+		port:        port,
 		connTimeout: time.Second * 2,
 		connPrimer:  primer,
 		configWithEch: &quic.Config{
@@ -76,7 +79,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 		// we need some sort of anchor to compare the measurement against to.
 		// Thus, we measure the TLS handshake duration without ECH enabled.
 
-		connNoECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithoutEch)
+		connNoECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithoutEch)
 		if err != nil {
 			// don't lose the information of the successful connection from before
 			// and only log the error
@@ -91,7 +94,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 		}
 	}
 
-	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
+	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithEch)
 	if err != nil {
 		var echErr *ftls.ECHRejectionError
 		if errors.As(err, &echErr) {
@@ -150,7 +153,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 	return &details, nil
 }
 
-func (c *quicConn) listenAndDial(timeout time.Duration, domain string, config *quic.Config) (*quic.Conn, error) {
+func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint, config *quic.Config) (*quic.Conn, error) {
 
 	// NOTE: previously listening on 127.0.0.1 worked for QUIC connections. However,
 	// after seeing repeatted failed QUIC connections, turns out localhost can not be used??
@@ -166,7 +169,7 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, config *q
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err := listener.Dial(ctx, "udp", net.JoinHostPort(domain, "443"), config)
+	conn, err := listener.Dial(ctx, "udp", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
 	if err != nil {
 		// try to increase the timeout by x2
 		if err == context.DeadlineExceeded {
@@ -209,7 +212,7 @@ func (c *quicConn) tryRetryConfig(retryConfigs *ftls.ECHRejectionError) (*quic.C
 
 	// retry ECH connection with parsed ECH RetryConfig
 	c.configWithEch.TLSConfig.EncryptedClientHelloConfigList = parsed
-	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.configWithEch)
+	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithEch)
 	if err != nil {
 		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", c.domain, err)
 	}

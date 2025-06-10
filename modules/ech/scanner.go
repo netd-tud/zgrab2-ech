@@ -163,6 +163,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		case "h1", "h2":
 			protoIter.Append(newTcpConn(
 				targetStr,
+				s.config.Port,
 				targetConfig.preferenceListRaw,
 				[]string{proto},
 				primerFunc,
@@ -170,6 +171,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		case "h3":
 			protoIter.Append(newQuicConn(
 				targetStr,
+				s.config.Port,
 				targetConfig.preferenceListRaw,
 				primerFunc,
 			))
