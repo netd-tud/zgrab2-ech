@@ -279,7 +279,7 @@ func (https ProtoHTTPS) Test(target string, measureLatency bool) (*ConnDetails, 
         Protocol:  "https"
     }
     // write the used ECH config into the scanner result
-    details.populateECHConfig(https.tslCfg.EncryptedClientHelloConfigList)
+    details.populateECHConfig(https.tlsCfg.EncryptedClientHelloConfigList)
 
     url := fmt.Sprintf("https://%s/cdn-cgi/trace", target)
     
@@ -307,22 +307,22 @@ In the `modules/ech/scanner.go` you need to add your protocol to the `ProtoIter`
 var protoIter = newProtoIter(s.config.MeasureHandshakeLatency)
 
 for _, proto := range s.protos {
-	switch proto {
-	case "h1":
-        // ...
-	case "h2":
-        // ...
-	case "h3":
-        // ...
-    case "https":
+    switch proto {
+      case "h1":
+      // ...
+      case "h2":
+      // ...
+      case "h3":
+      // ...
+      case "https":
         protoIter.Append(&ProtoHTTPS{
-            tlsConfig: ftls.Config{
-                ServerName: targetStr,
-                EncryptedClientHelloList: targetConfig.preferneceListRaw
-            },
+           tlsConfig: ftls.Config{
+           ServerName: targetStr,
+           EncryptedClientHelloList: targetConfig.preferneceListRaw
+          },
         })
-	default:
-		log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
-	}
+      default:
+        log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
+  }
 }
 ``
