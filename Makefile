@@ -10,9 +10,9 @@ GO_BIN=$(shell which go)
 GO_FILES = $(shell find . -type f -name '*.go')
 TEST_MODULES ?= 
 
-all: zgrab2
+all: build
 
-.PHONY: all clean integration-test integration-test-clean docker-runner gofmt test test-ech build-linux
+.PHONY: all clean test lint build build-linux deploy
 
 # Test currently only runs on the modules folder because some of the 
 # third-party libraries in lib (e.g. http) are failing.
