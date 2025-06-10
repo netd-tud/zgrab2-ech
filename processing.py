@@ -9,6 +9,7 @@ import click
 
 class DataFrame():
     dctx = zstd.ZstdDecompressor()
+    error_df = []
 
     def iter_zstd(self, file, size=100_000):
         return self._iter_stream(
@@ -32,13 +33,25 @@ class DataFrame():
                 yield (
                     f"chunk_{i}", pl.json_normalize(tmp, infer_schema_length=1_000_000).rename(
                     lambda c:
-                        c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")
+                            c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")
                     ).explode("results").unnest("results")
                 )
+
             try:
-                data.append({"results": json.loads(line)["data"]["ech"]["result"]})
-            except KeyError:
-                continue
+                raw = json.loads(line)
+                row = raw["data"]["ech"]
+
+                if row.get("error", None):
+                    row["domain"] = raw["domain"]
+                    self.error_df.append({
+                        "timestamp": row["timestamp"],
+                        "domain": raw["domain"],
+                        "scan_error": row["error"],
+                        "protocol": "",
+                    })
+                    continue
+
+                data.append({"results": row.get("result", None), "scan_error": ""})
             except:
                 print(f"Failed to read string to json:\n{line}")
                 sys.exit(1)
@@ -59,12 +72,18 @@ def chunk_file(file, chunk_dir, size=20_000, compressed=False):
     print(f"=== Chunking Input File ===")
     print(f"=> chunking {file} with {size} rows per chunk")
 
-    readerFn = DataFrame().iter_file(file, size) if not compressed else DataFrame().iter_zstd(file, size)
+    df = DataFrame()
+    readerFn = df.iter_file(file, size) if not compressed else df.iter_zstd(file, size)
 
     for (name, chunk) in readerFn:
         file_path = f"{os.path.join(chunk_dir, name)}.parquet"
         chunk.write_parquet(file_path)
         print(f"==> created: {file_path}.parquet")
+
+    if len(df.error_df) > 0:
+        print(f"Writing error cases as df")
+        errs = pl.json_normalize(df.error_df, infer_schema_length=1_000_000)
+        errs.write_parquet(f"{os.path.join(chunk_dir, 'chunk_errors')}.parquet")
 
 
 # load each parquet chunk and combine into single dataframe
@@ -72,10 +91,27 @@ def combine_chunks(directory):
     print(f"=== Merging Chunks ===")
     ordered = os.listdir(directory)
     ordered.sort()
-    filtered = list(filter(lambda n: n.startswith("chunk_"), ordered))
-    print(f"=> found {len(filtered)} chunks")
+    ok_chunks = list(filter(lambda n: n.startswith("chunk_") and not n.endswith("_errors.parquet"), ordered))
+    err_chunk = list(filter(lambda n: n.endswith("_errors.parquet"), ordered))
+
+    print(f"=> found {len(ok_chunks)} chunks: {ok_chunks}")
     
-    return pl.concat([pl.read_parquet(os.path.join(directory,file)) for file in filtered], how="diagonal")
+    ok_df = pl.concat([pl.read_parquet(os.path.join(directory,file)) for file in ok_chunks]) #, how="diagonal")
+    if len(err_chunk) <= 0:
+        return ok_df
+
+    print(f"=> found error chunk. Adding to result data-frame")
+    err_df = pl.read_parquet(os.path.join(directory,err_chunk[0]))
+
+    missing_cols = set(ok_df.columns) - set(err_df.columns)
+    for col in missing_cols:
+        dtype = ok_df.schema[col]
+        err_df = err_df.with_columns(pl.lit(None, dtype=dtype).alias(col))
+
+    err_df = err_df.select(ok_df.columns)
+
+    return pl.concat([ok_df, err_df], how="vertical")
+
 
 def remove_chunks(directory):
     print(f"=== Deleting Chunks ===")
