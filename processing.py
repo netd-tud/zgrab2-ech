@@ -4,6 +4,8 @@ import json
 import polars as pl
 import zstandard as zstd
 import io
+import tempfile
+import click
 
 class DataFrame():
     dctx = zstd.ZstdDecompressor()
@@ -91,14 +93,21 @@ def remove_chunks(directory):
 
 
 
+@click.command()
+@click.option("--file", default=None, help="input file of (compressed/decompressed) zgrab2 results")
+@click.option("--chunk-size", "chunk_size", default=1000, help="# of rows per chunk")
+def run(file, chunk_size):
+    if not file:
+        print("Must provide input file")
+        sys.exit(1)
 
-import tempfile
-def run(file_path, chunk_size=1000, compressed=False):
+    compressed = file.endswith(".zst")
+
     temp_dir = tempfile.TemporaryDirectory()
-    print(f"Preparing: {file_path} into chunks of size {chunk_size}")
+    print(f"Preparing: {file} into chunks of size {chunk_size}")
     print(f"Creating temporary directory for chunking: {temp_dir.name}")
 
-    chunk_file(file_path, temp_dir.name, size=chunk_size, compressed=compressed)
+    chunk_file(file, temp_dir.name, size=chunk_size, compressed=compressed)
     print("")
 
     df = combine_chunks(temp_dir.name)
@@ -114,17 +123,6 @@ def run(file_path, chunk_size=1000, compressed=False):
 
 chunk_dir = "chunks"
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("File path to raw data required")
-        sys.exit(1)
-
-    file_path, chunk_size = sys.argv[1], 20_000
-    compressed = file_path.endswith(".zst")
-
-    if len(sys.argv) > 2:
-        chunk_size = int(sys.argv[2])
-
-
-    run(file_path, chunk_size=chunk_size, compressed=compressed)
+    run()
 
 
