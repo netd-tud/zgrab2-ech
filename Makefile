@@ -38,12 +38,10 @@ build: $(GO_FILES)
 
 
 HOST=ech.research.netd.cs.tu-dresden.de
-
+PATH=/mnt/data01/ech-scanner/build
 deploy: build-linux
-	scp $(BUILD_NAME_LINUX) $(USER)@$(HOST):/mnt/data01/ech-scanner/build
+	scp $(BUILD_NAME_LINUX) $(USER)@$(HOST):$(PATH)
 
-deploy-grease: build-linux
-	scp $(BUILD_NAME_LINUX) $(USER)@$(HOST):/mnt/data01/ech-greased/build
 clean:
 	cd cmd/zgrab2 && go clean
 	rm -f $(BUILD_NAME) $(BUILD_NAME_LINUX)

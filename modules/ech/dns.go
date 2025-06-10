@@ -12,11 +12,15 @@ import (
 
 const defaultMaxRetries = 5
 
-var defaultResolver = resolver{
+var defaultResolver = &resolver{
 	resolvers:       []string{"8.8.8.8:53", "1.1.1.1:53"},
 	currentResolver: 0,
 	port:            "53",
 	maxRetries:      defaultMaxRetries,
+}
+
+func (r *resolver) setCustom(resolvers ...string) {
+	r.resolvers = resolvers
 }
 
 type resolver struct {

@@ -185,7 +185,7 @@ func primeWithDNSConn(domain string) error {
 // establish TCP connection to the target. No information but the error is returned.
 // based on measurements these function where needed to level / remove networking bias
 // for measuring TLS handshake latencies.
-func primeTCPConn(domain string) error {
+func primeWithTCPConn(domain string) error {
 	conn, err := net.Dial("tcp", net.JoinHostPort(domain, "80"))
 	if err != nil {
 		return fmt.Errorf("primer: failed to open tcp on port 80 to %s: %v", domain, err)

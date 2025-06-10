@@ -35,6 +35,8 @@ type Flags struct {
 	ConfigVersion *uint16 `long:"cfg-version" description:"overwrite the ech config version (effect global: all targets will use value)"`
 	ConfigID      *uint8  `long:"cfg-id" description:"overwrite the ech config id (effect global: all targets will use value)"`
 	ConfigPubName *string `long:"cfg-pub-name" description:"overwrite the ech config public name (effect global: all targets will use value)"`
+
+	Resolvers *string `long:"resolvers" description:"comma separated list of DNS resolver ip:port"`
 }
 
 func (f *Flags) Validate(args []string) error {
@@ -73,6 +75,10 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 	}
 
 	s.config = f
+
+	if resolvers := parseResolvers(*s.config.Resolvers); len(resolvers) > 0 {
+		defaultResolver.setCustom(resolvers...)
+	}
 
 	s.protos = strings.Split(*s.config.Protocols, ",")
 
@@ -136,7 +142,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	case "tcp":
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "tcp"
-			return primeTCPConn(target.Domain)
+			return primeWithTCPConn(target.Domain)
 		}
 	case "tls":
 		primerFunc = func(details *ConnDetails) error {
@@ -154,13 +160,19 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 
 	for _, proto := range s.protos {
 		switch proto {
-		case "h1":
-			protoIter.Append(newTcpConn(targetStr, targetConfig.preferenceListRaw, []string{"h1"}, primerFunc))
-
-		case "h2":
-			protoIter.Append(newTcpConn(targetStr, targetConfig.preferenceListRaw, []string{"h2"}, primerFunc))
+		case "h1", "h2":
+			protoIter.Append(newTcpConn(
+				targetStr,
+				targetConfig.preferenceListRaw,
+				[]string{proto},
+				primerFunc,
+			))
 		case "h3":
-			protoIter.Append(newQuicConn(targetStr, targetConfig.preferenceListRaw, primerFunc))
+			protoIter.Append(newQuicConn(
+				targetStr,
+				targetConfig.preferenceListRaw,
+				primerFunc,
+			))
 		default:
 			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
 		}
@@ -209,6 +221,10 @@ func (s *Scanner) resolveECHConfig(target zgrab2.ScanTarget, targetStr string, g
 	}
 
 	return fromGreaseECH(targetStr)
+}
+
+func parseResolvers(resolvers string) []string {
+	return strings.Split(resolvers, ",")
 }
 
 func Register() {
