@@ -21,6 +21,11 @@ In addition to detecting enabled ECH deployments, the scanner can be instructed 
 Observation of latency measurements have shown that the initial connection might be biased by network related effects such as caching or else. This can result in an unintentionally increased latency for the inital connection. Observation shows, that this bias is independed of what the initial connection is, and for both ECH connection or non-ECH connection this bias has been observed. To mitigate the bias the scanner accepts a `--conn-primer` flag which specifies a network connection to the target. The primer can be a _tcp_ connection, a _tls_ connection, or a _dns_ query. No information from the primer function is logged but each successful record will indicate which primer was used (none is the default).
 
 
+## Note on the TLS lib
+
+Two points to mention. First, zgrab2 implements its own TLS stack through which connections can be opened. However, they do not support ECH. On the other hand go supports ECH since go1.23 (zgrab finally migrated to go1.23, but after this fork, [PR](https://github.com/zmap/zgrab2/pull/466)). 
+Second, the go ECH implementation does not export interesting fields of the handshake such as the _*Hello_ Messages. Therefore, the go ECH implementation (mostly in the std-lib tls package) is included and used within the repo. Should you need ECH please import the tls package from `gofork/tls`. This does not exclude you from using the std-lib package, it only ports the code which includes the TLS handshake and ECH code, for the rest it is using the std lib as well.
+
 ## Usage
 
 ### Input Format
@@ -252,7 +257,7 @@ The resulting dataframe contains connection details per row. This means a scan w
 
 To start the processing run:
 ```bash
-$ python3 processing.py <zgrab2-results> <chunk-size:default 1000>
+$ python3 processing.py --mod ech --file <zgrab2-results> --chunk-size <default 1000>
 ```
 
 __Note:__ The processing script can be called with an uncompressed (raw) zgrab2 results file or an zstandard compressed file, in which case the file name __must__ end with `.zst`

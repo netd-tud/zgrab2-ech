@@ -8,6 +8,10 @@ import tempfile
 import click
 
 class DataFrame():
+
+    def __init__(self, module):
+        self.mod = module
+
     dctx = zstd.ZstdDecompressor()
     error_df = []
 
@@ -31,27 +35,32 @@ class DataFrame():
                 data.clear()
                 counter = 0
                 yield (
-                    f"chunk_{i}", pl.json_normalize(tmp, infer_schema_length=1_000_000).rename(
-                    lambda c:
-                            c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")
-                    ).explode("results").unnest("results")
+                    f"chunk_{i}",
+                    pl.json_normalize(tmp, infer_schema_length=1_000_000)
+                    .explode("results")
+                    .unnest("results") if self.mod == "ech" else pl.json_normalize(tmp, infer_schema_length=1_000_000)
                 )
 
             try:
                 raw = json.loads(line)
-                row = raw["data"]["ech"]
+                row = raw["data"][self.mod]
 
                 if row.get("error", None):
                     row["domain"] = raw["domain"]
                     self.error_df.append({
-                        "timestamp": row["timestamp"],
-                        "domain": raw["domain"],
+                        "scan_target": raw["domain"],
+                        "scan_timestamp": row["timestamp"],
                         "scan_error": row["error"],
                         "protocol": "",
                     })
                     continue
 
-                data.append({"results": row.get("result", None), "scan_error": ""})
+                data.append({
+                    "scan_target": raw["domain"], 
+                    "results": row.get("result", None), 
+                    "scan_timestamp": row["timestamp"],
+                    "scan_error": ""
+                })
             except:
                 print(f"Failed to read string to json:\n{line}")
                 sys.exit(1)
@@ -59,20 +68,21 @@ class DataFrame():
                         
         # process leftovers
         if len(data) > 0:
-            yield (f"chunk_last", pl.json_normalize(data, infer_schema_length=1_000_000).rename(
-                lambda c:
-                    c.replace(".", "_").replace("data_ech_result_", "").replace("data_ech_", "")
-                ).explode("results").unnest("results")
+            yield (
+                f"chunk_last",
+                pl.json_normalize(data, infer_schema_length=1_000_000)
+                .explode("results")
+                .unnest("results") if self.mod == "ech" else pl.json_normalize(data, infer_schema_length=1_000_000)
             )
 
         
 
 # break down large file into smaller parquet files
-def chunk_file(file, chunk_dir, size=20_000, compressed=False):
+def chunk_file(mod, file, chunk_dir, size=20_000, compressed=False):
     print(f"=== Chunking Input File ===")
     print(f"=> chunking {file} with {size} rows per chunk")
 
-    df = DataFrame()
+    df = DataFrame(mod)
     readerFn = df.iter_file(file, size) if not compressed else df.iter_zstd(file, size)
 
     for (name, chunk) in readerFn:
@@ -132,7 +142,8 @@ def remove_chunks(directory):
 @click.command()
 @click.option("--file", default=None, help="input file of (compressed/decompressed) zgrab2 results")
 @click.option("--chunk-size", "chunk_size", default=1000, help="# of rows per chunk")
-def run(file, chunk_size):
+@click.option("--mod", default="ech", help="module used with zgrab2, required for schema parsing")
+def run(mod, file, chunk_size):
     if not file:
         print("Must provide input file")
         sys.exit(1)
@@ -143,7 +154,7 @@ def run(file, chunk_size):
     print(f"Preparing: {file} into chunks of size {chunk_size}")
     print(f"Creating temporary directory for chunking: {temp_dir.name}")
 
-    chunk_file(file, temp_dir.name, size=chunk_size, compressed=compressed)
+    chunk_file(mod, file, temp_dir.name, size=chunk_size, compressed=compressed)
     print("")
 
     df = combine_chunks(temp_dir.name)
