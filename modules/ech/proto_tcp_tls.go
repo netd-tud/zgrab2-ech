@@ -72,6 +72,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	dialer := net.Dialer{
 		Timeout:   c.connTimeout,
 		KeepAlive: c.connTimeout,
+		Resolver:  net.DefaultResolver,
 	}
 
 	host := net.JoinHostPort(c.domain, strconv.Itoa(int(c.port)))
@@ -81,7 +82,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	// by establishing a non-ECH connection through the same protocol and host and measuring
 	// its latency.
 	if traceHandshakeLatency {
-		baseConn, err := ftls.DialWithDialer(&dialer, "tcp", host, c.configWithoutEch)
+		baseConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithoutEch)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled to (host=%s): %v", host, err)
 		}
@@ -98,11 +99,11 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	// try to establish the actual ECH connection. If it fails we check for any
 	// RetryConfig the server send back to us. Should there be any RetryConfig,
 	// we will parse it and try to establish the connection again with the RetryConfig
-	echConn, err := ftls.DialWithDialer(&dialer, "tcp", host, c.configWithEch)
+	echConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithEch)
 	if err != nil {
 		if retryConfigs, ok := err.(*ftls.ECHRejectionError); ok {
 			if len(retryConfigs.RetryConfigList) == 0 {
-				return nil, fmt.Errorf("tcp: tls: RetryConfig: server provided empty RetryConfig")
+				return nil, fmt.Errorf("tcp: tls: RetryConfig: server (%s) provided empty RetryConfig", c.domain)
 			}
 
 			var parsedRetryList goech.ECHConfigList

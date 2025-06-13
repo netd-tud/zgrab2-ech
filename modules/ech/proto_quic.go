@@ -160,7 +160,7 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint
 	// Haven't found evidence in the x/net/quic package yet. Can only confirm so
 	//
 	// Listen on random (and available) port
-	listener, err := quic.Listen("udp", ":0", nil)
+	listener, err := quic.Listen("udp4", ":0", nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start quic listener: %w", err)
 	}
@@ -169,7 +169,7 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err := listener.Dial(ctx, "udp", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
+	conn, err := listener.Dial(ctx, "udp4", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
 	if err != nil {
 		// try to increase the timeout by x2
 		if err == context.DeadlineExceeded {

@@ -1118,12 +1118,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 			for _, cert := range certs[1:] {
 				opts.Intermediates.AddCert(cert)
 			}
-			// var err error
-			// c.verifiedChains, err = certs[0].Verify(opts)
-			// if err != nil {
-			// 	c.sendAlert(alertBadCertificate)
-			// 	return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
-			// }
+			var err error
+			c.verifiedChains, err = certs[0].Verify(opts)
+			if err != nil && !c.config.InsecureSkipVerify {
+				c.sendAlert(alertBadCertificate)
+				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+			}
 		}
 	} else if !c.config.InsecureSkipVerify {
 		opts := x509.VerifyOptions{
