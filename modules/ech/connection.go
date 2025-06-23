@@ -98,6 +98,7 @@ type ProtoTester interface {
 
 type ProtoIter struct {
 	protos           []ProtoTester
+	errors           []error
 	remaining        int
 	timingValidation bool
 }
@@ -105,6 +106,7 @@ type ProtoIter struct {
 func newProtoIter(timingValidation bool) *ProtoIter {
 	return &ProtoIter{
 		protos:           []ProtoTester{},
+		errors:           []error{},
 		remaining:        0,
 		timingValidation: timingValidation,
 	}
@@ -115,8 +117,6 @@ func (pi *ProtoIter) Append(protos ...ProtoTester) {
 	pi.remaining += len(protos)
 }
 
-var ErrProtosExhausted = errors.New("no more protocols to test - all failed")
-
 func (pi *ProtoIter) Iter(target string) iter.Seq2[*ConnDetails, error] {
 	return func(yield func(*ConnDetails, error) bool) {
 		for _, proto := range pi.protos {
@@ -125,7 +125,8 @@ func (pi *ProtoIter) Iter(target string) iter.Seq2[*ConnDetails, error] {
 			pi.remaining -= 1
 
 			if err != nil && pi.remaining == 0 {
-				err = errors.Join(ErrProtosExhausted, err)
+				pi.errors = append(pi.errors, err)
+				err = errors.Join(pi.errors...)
 			}
 
 			if !yield(result, err) {

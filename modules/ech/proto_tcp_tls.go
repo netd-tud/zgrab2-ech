@@ -84,12 +84,12 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	if traceHandshakeLatency {
 		baseConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithoutEch)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled to (host=%s): %v", host, err)
+			return &details, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled to (host=%s): %v", host, err)
 		}
 		defer baseConn.Close()
 
 		if baseConn.ConnectionState().ECHAccepted {
-			return nil, fmt.Errorf("non ECH connection used for latency cmp indicates use of ECH")
+			return &details, fmt.Errorf("non ECH connection used for latency cmp indicates use of ECH")
 		}
 
 		details.AnchorPeerIP = ipFromTlsConn(baseConn)
@@ -103,13 +103,13 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	if err != nil {
 		if retryConfigs, ok := err.(*ftls.ECHRejectionError); ok {
 			if len(retryConfigs.RetryConfigList) == 0 {
-				return nil, fmt.Errorf("tcp: tls: RetryConfig: server (%s) provided empty RetryConfig", c.domain)
+				return &details, fmt.Errorf("tcp: tls: RetryConfig: server (%s) provided empty RetryConfig", c.domain)
 			}
 
 			var parsedRetryList goech.ECHConfigList
 			parsedRetryList, err = echFromjRetry(retryConfigs.RetryConfigList)
 			if err != nil {
-				return nil, fmt.Errorf("tcp: tls: RetryConfig: failed to parse server provided RetryConfig: %v", err)
+				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to parse server provided RetryConfig: %v", err)
 			}
 			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
 				return RetryConfig{
@@ -124,7 +124,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 
 			parsed, err := parsedRetryList.MarshalBinary()
 			if err != nil {
-				return nil, fmt.Errorf("tcp: tls: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
+				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
 			}
 			details.populateECHConfig(parsed) // overwrite intial config with the one that worked
 
@@ -132,10 +132,10 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 			c.configWithEch.EncryptedClientHelloConfigList = parsed
 			echConn, err = ftls.DialWithDialer(&dialer, "tcp", host, c.configWithEch)
 			if err != nil {
-				return nil, fmt.Errorf("tcp: tls: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", host, err)
+				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", host, err)
 			}
 		} else {
-			return nil, fmt.Errorf("tcp: tls (ECH): failed to dial host(=%s): %v", host, err)
+			return &details, fmt.Errorf("tcp: tls (ECH): failed to dial host(=%s): %v", host, err)
 		}
 	}
 	defer echConn.Close()

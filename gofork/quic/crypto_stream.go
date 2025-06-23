@@ -6,6 +6,8 @@
 
 package quic
 
+import "errors"
+
 // "Implementations MUST support buffering at least 4096 bytes of data
 // received in out-of-order CRYPTO frames."
 // https://www.rfc-editor.org/rfc/rfc9000.html#section-7.5-2
@@ -27,7 +29,7 @@ type cryptoStream struct {
 }
 
 // handleCrypto processes data received in a CRYPTO frame.
-func (s *cryptoStream) handleCrypto(off int64, b []byte, f func([]byte) error) error {
+func (s *cryptoStream) handleCrypto(off int64, b []byte, f func([]byte) error) (err error) {
 	end := off + int64(len(b))
 	if end-s.inset.min() > cryptoBufferSize {
 		return localTransportError{
@@ -61,7 +63,20 @@ func (s *cryptoStream) handleCrypto(off int64, b []byte, f func([]byte) error) e
 	if size <= 0 {
 		return nil
 	}
-	err := s.in.read(s.in.start, size, f)
+	defer func() {
+		if rec := recover(); rec != nil {
+			switch x := rec.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("cryptoStream panic ~ unkown error")
+			}
+		}
+	}()
+
+	err = s.in.read(s.in.start, size, f)
 	s.in.discardBefore(s.inset[0].end)
 	return err
 }

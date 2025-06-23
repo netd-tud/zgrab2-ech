@@ -1,7 +1,6 @@
 package ech
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -76,8 +75,10 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 
 	s.config = f
 
-	if resolvers := parseResolvers(*s.config.Resolvers); len(resolvers) > 0 {
-		defaultResolver.setCustom(resolvers...)
+	if s.config.Resolvers != nil {
+		if resolvers := parseResolvers(*s.config.Resolvers); len(resolvers) > 0 {
+			defaultResolver.setCustom(resolvers...)
+		}
 	}
 
 	s.protos = strings.Split(*s.config.Protocols, ",")
@@ -175,6 +176,12 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 				targetConfig.preferenceListRaw,
 				primerFunc,
 			))
+		case "ttfb":
+			protoIter.Append(newTTFB(
+				targetStr,
+				s.config.Port,
+				targetConfig.preferenceListRaw,
+			))
 		default:
 			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
 		}
@@ -185,9 +192,9 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	for details, err := range protoIter.Iter(targetStr) {
 		if err != nil {
 			log.Warnf("Tested protocol returned an error: %v", err)
-			if errors.Is(err, ErrProtosExhausted) {
-				return zgrab2.SCAN_APPLICATION_ERROR, nil, err
-			}
+			e := err.Error()
+			details.Error = &e
+			results = append(results, *details)
 			continue
 		}
 

@@ -101,7 +101,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 			var parsedRetryList goech.ECHConfigList
 			connECH, parsedRetryList, err = c.tryRetryConfig(echErr)
 			if err != nil {
-				return nil, fmt.Errorf("quic: ECH conn with retry config failed: %v", err)
+				return &details, fmt.Errorf("quic: ECH conn with retry config failed: %v", err)
 			}
 
 			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
@@ -123,7 +123,7 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 			}
 
 		} else {
-			return nil, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)
+			return &details, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)
 		}
 	}
 	defer connECH.Close()
@@ -165,6 +165,11 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint
 		return nil, fmt.Errorf("unable to start quic listener: %w", err)
 	}
 	defer listener.Close(context.Background())
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Warnf("Quic panic for domain: %s:%d with: %v", domain, port, err)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -177,7 +182,7 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint
 			extendedCtx, extendedCancel := context.WithTimeout(context.Background(), timeout*2)
 			defer extendedCancel()
 
-			extendedConn, extendedErr := listener.Dial(extendedCtx, "udp", net.JoinHostPort(domain, "443"), config)
+			extendedConn, extendedErr := listener.Dial(extendedCtx, "udp4", net.JoinHostPort(domain, "443"), config)
 			if extendedErr != nil {
 				return nil, fmt.Errorf("unable to dial quic connection even after extending timeout: %w", extendedErr)
 			}
