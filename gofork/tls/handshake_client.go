@@ -259,6 +259,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	}
 
 	var tlsStartTime = time.Now()
+	c.TLSHandshakeStart = tlsStartTime
 
 	// This may be a renegotiation handshake, in which case some fields
 	// need to be reset.
@@ -370,7 +371,9 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		}
 
 		defer func() {
-			c.TLSHandshakeDuration = time.Since(tlsStartTime).Milliseconds()
+			var end = time.Now()
+			c.TLSHandshakeDuration = end.Sub(tlsStartTime).Milliseconds()
+			c.TLSHandhshakeDone = end
 
 			c.ServerHello = hs.ServerHello
 			c.ClientHelloOuter.fromUnexported(hello.clone())
@@ -393,7 +396,9 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	}
 
 	defer func() {
-		c.TLSHandshakeDuration = time.Since(tlsStartTime).Milliseconds()
+		var end = time.Now()
+		c.TLSHandshakeDuration = end.Sub(tlsStartTime).Milliseconds()
+		c.TLSHandhshakeDone = end
 
 		c.ClientHelloOuter = hs.ClientHello
 		c.ServerHello = hs.ServerHello

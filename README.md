@@ -330,4 +330,9 @@ for _, proto := range s.protos {
         log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
   }
 }
-``
+```
+
+
+## Notes on go tls lib changes
+
+__InsecureSkipVerify:__ in order to allow TLS connections using IP addresses and avoid cert errors, the `gofork/tls/handshake_client.go:1123` has been changed such that cert errors with ECH will be ignored when `tls.Config.InsecureSkipVerify` is true.

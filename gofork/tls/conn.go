@@ -30,6 +30,8 @@ type Conn struct {
 	ClientHelloOuter     ClientHelloMsg
 	ClientHelloInner     *ClientHelloMsg
 	TLSHandshakeDuration int64 // in milliseconds
+	TLSHandshakeStart    time.Time
+	TLSHandhshakeDone    time.Time
 	// constant
 	conn        net.Conn
 	isClient    bool

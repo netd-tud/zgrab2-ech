@@ -48,6 +48,8 @@ type ConnDetails struct {
 	AnchorPeerIP               *string             `json:"tls_handshake_anchor_ip"`
 	ECHAccepted                *bool               `json:"accepted_ech"`
 	TLSHandshakeCompleted      *bool               `json:"tls_handshake_completed"`
+	TimeToFirstByte            int64               `json:"ttfb"`
+	AnchorTimeToFirstByte      int64               `json:"anchor_ttfb"`
 	NegotiatedProto            *string             `json:"negotiated_protocol"`
 	NegotiatedCipher           *string             `json:"negotiated_cipher"`
 	RetryConfigs               []RetryConfig       `json:"retry_configs"`

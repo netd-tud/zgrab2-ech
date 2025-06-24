@@ -15,6 +15,7 @@ import (
 )
 
 type quicConn struct {
+	listener         *quic.Endpoint
 	domain           string
 	port             uint
 	connPrimer       func(*ConnDetails) error
@@ -23,8 +24,9 @@ type quicConn struct {
 	configWithoutEch *quic.Config
 }
 
-func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
+func newQuicConn(ln *quic.Endpoint, domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
 	return &quicConn{
+		listener:    ln,
 		domain:      domain,
 		port:        port,
 		connTimeout: time.Second * 2,
@@ -155,16 +157,6 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 
 func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint, config *quic.Config) (*quic.Conn, error) {
 
-	// NOTE: previously listening on 127.0.0.1 worked for QUIC connections. However,
-	// after seeing repeatted failed QUIC connections, turns out localhost can not be used??
-	// Haven't found evidence in the x/net/quic package yet. Can only confirm so
-	//
-	// Listen on random (and available) port
-	listener, err := quic.Listen("udp4", ":0", nil)
-	if err != nil {
-		return nil, fmt.Errorf("unable to start quic listener: %w", err)
-	}
-	defer listener.Close(context.Background())
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Warnf("Quic panic for domain: %s:%d with: %v", domain, port, err)
@@ -174,15 +166,15 @@ func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err := listener.Dial(ctx, "udp4", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
+	conn, err := c.listener.Dial(ctx, "udp4", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
 	if err != nil {
 		// try to increase the timeout by x2
 		if err == context.DeadlineExceeded {
-			logrus.Warnf("[%s] quic connection timeout(=%dsec) from local(=%s) exeeded. Trying with timeout=%dsec", domain, int(timeout.Seconds()), listener.LocalAddr().String(), int(2*timeout.Seconds()))
+			logrus.Warnf("[%s] quic connection timeout(=%dsec) from local(=%s) exeeded. Trying with timeout=%dsec", domain, int(timeout.Seconds()), c.listener.LocalAddr().String(), int(2*timeout.Seconds()))
 			extendedCtx, extendedCancel := context.WithTimeout(context.Background(), timeout*2)
 			defer extendedCancel()
 
-			extendedConn, extendedErr := listener.Dial(extendedCtx, "udp4", net.JoinHostPort(domain, "443"), config)
+			extendedConn, extendedErr := c.listener.Dial(extendedCtx, "udp4", net.JoinHostPort(domain, "443"), config)
 			if extendedErr != nil {
 				return nil, fmt.Errorf("unable to dial quic connection even after extending timeout: %w", extendedErr)
 			}

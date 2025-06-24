@@ -2,8 +2,10 @@ package ech
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/netd-tud/zgrab2/gofork/quic"
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 
 	"github.com/netd-tud/zgrab2"
@@ -36,6 +38,7 @@ type Flags struct {
 	ConfigPubName *string `long:"cfg-pub-name" description:"overwrite the ech config public name (effect global: all targets will use value)"`
 
 	Resolvers *string `long:"resolvers" description:"comma separated list of DNS resolver ip:port"`
+	GetURL    *string `long:"x-get" default:"/" description:"url used for ttfb proto, else ignored"`
 }
 
 func (f *Flags) Validate(args []string) error {
@@ -47,8 +50,9 @@ func (f *Flags) Help() string {
 }
 
 type Scanner struct {
-	config *Flags
-	protos []string
+	config    *Flags
+	protos    []string
+	qListener *quic.Endpoint
 }
 
 // NewScanner implements zgrab2.ScanModule.
@@ -82,6 +86,22 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 	}
 
 	s.protos = strings.Split(*s.config.Protocols, ",")
+
+	listener, err := quic.Listen("udp4", ":0", nil)
+	if err != nil {
+		return fmt.Errorf("unable to start quic listener: %w", err)
+	}
+	s.qListener = listener
+
+	connPerDomainCount := len(s.protos)
+	if s.config.MeasureHandshakeLatency {
+		connPerDomainCount *= 2
+	}
+	if s.config.ConnectionPrimer != nil && *s.config.ConnectionPrimer != "none" {
+		connPerDomainCount *= 2
+	}
+
+	fmt.Fprintf(os.Stdout, "Per domain %d connections will be made, at least one per provided protocol. One Additional connection when --measure-latency is set and one additional connection when --conn-primer != 'none'\n", connPerDomainCount)
 
 	return nil
 }
@@ -171,6 +191,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 			))
 		case "h3":
 			protoIter.Append(newQuicConn(
+				s.qListener,
 				targetStr,
 				s.config.Port,
 				targetConfig.preferenceListRaw,
@@ -180,6 +201,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 			protoIter.Append(newTTFB(
 				targetStr,
 				s.config.Port,
+				*s.config.GetURL,
 				targetConfig.preferenceListRaw,
 			))
 		default:
