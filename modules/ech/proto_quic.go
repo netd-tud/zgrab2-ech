@@ -51,7 +51,7 @@ func newQuicConn(ln *quic.Endpoint, domain string, port uint, rawEch []byte, pri
 	}
 }
 
-func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error) {
+func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Warnf("quic: Test call paniced for target: %s: %v\n", target, err)
@@ -76,66 +76,76 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 		}
 	}
 
-	if withValidation {
+	host := net.JoinHostPort(c.domain, strconv.Itoa(int(c.port)))
+	if measureLatency {
 		// since we are also measuring how long the TLS handshake took
 		// we need some sort of anchor to compare the measurement against to.
 		// Thus, we measure the TLS handshake duration without ECH enabled.
 
-		connNoECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithoutEch)
+		anchor, retries, err := c.dialWithRetries(c.connTimeout, host, c.configWithoutEch)
 		if err != nil {
-			// don't lose the information of the successful connection from before
-			// and only log the error
-			logrus.Warnf("failed to open QUIC conneciton w/o ECH enabled as timing anchor: %v", err)
-		} else {
-			if connNoECH.TLS != nil && connNoECH.TLS.Conn != nil {
-				details.TLSHandshakeAnchorDuration = connNoECH.TLS.Conn.TLSHandshakeDuration
-				if peerIp, _, err := net.SplitHostPort(connNoECH.PeerAddr.String()); err == nil {
-					details.AnchorPeerIP = &peerIp
-				}
-			}
+			details.AnchorFailedConnAttempts = retries
+			return &details, fmt.Errorf("%s: quic anchor failed, retries: %d: %v", host, retries, err)
+		}
+		defer anchor.Close()
+
+		if anchor.TLS != nil && anchor.TLS.Conn != nil {
+			details.TLSHandshakeAnchorDuration = anchor.TLS.Conn.TLSHandshakeDuration
+			details.AnchorPeerIP = ipFromTlsConn(anchor.TLS.Conn)
 		}
 	}
 
-	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithEch)
+	echConn, retries, err := c.dialWithRetries(c.connTimeout, host, c.configWithEch)
 	if err != nil {
-		var echErr *ftls.ECHRejectionError
-		if errors.As(err, &echErr) {
-			var parsedRetryList goech.ECHConfigList
-			connECH, parsedRetryList, err = c.tryRetryConfig(echErr)
-			if err != nil {
-				return &details, fmt.Errorf("quic: ECH conn with retry config failed: %v", err)
+		details.FailedConnAttempts = retries
+
+		var rejectErr *ftls.ECHRejectionError
+		ok := errors.As(err, &rejectErr)
+		if !ok { // some unrecoverable error
+			return &details, fmt.Errorf("%s: quic ECH failed, retries: %d: %v", host, retries, err)
+		}
+
+		if len(rejectErr.RetryConfigList) == 0 {
+			return &details, fmt.Errorf("%s: quic server responded with empty RetryConfigs", host)
+		}
+
+		parsedRetryList, err := echFromjRetry(rejectErr.RetryConfigList)
+		if err != nil {
+			return &details, fmt.Errorf("%s: quic failed to parse RetryConfigs: %v", host, err)
+		}
+		details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+			return RetryConfig{
+				EchVersion:  int(rt.Version),
+				EchConfigID: int(rt.ConfigID),
+				PublicName:  string(rt.RawPublicName),
+				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
+					return cs.String()
+				}),
 			}
+		})
 
-			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
-				return RetryConfig{
-					EchVersion:  int(rt.Version),
-					EchConfigID: int(rt.ConfigID),
-					PublicName:  string(rt.RawPublicName),
-					CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
-						return cs.String()
-					}),
-				}
-			})
+		parsed, err := parsedRetryList.MarshalBinary()
+		if err != nil {
+			return &details, fmt.Errorf("%s: quic failed to marshal RetryConfigs: %v", host, err)
+		}
+		details.populateECHConfig(parsed)
 
-			parsed, err := parsedRetryList.MarshalBinary()
-			if err != nil {
-				logrus.Warnf("quic: unable to marshal retry config: %v\n", err)
-			} else {
-				details.populateECHConfig(parsed)
-			}
-
-		} else {
-			return &details, fmt.Errorf("quic: failed to dial host(=%s): %v", c.domain, err)
+		// retry ECH connection with parsed ECH RetryConfig
+		c.configWithEch.TLSConfig.EncryptedClientHelloConfigList = parsed
+		echConn, retries, err = c.dialWithRetries(c.connTimeout, host, c.configWithEch)
+		if err != nil {
+			details.RetryConfigFailedConnAttempts = retries
+			return &details, fmt.Errorf("%s: quic connection failed with RetryConfigs: %v", host, err)
 		}
 	}
-	defer connECH.Close()
+	defer echConn.Close()
 
-	qConn := connECH.TLS
+	qConn := echConn.TLS
 	tlsConn := qConn.Conn
 
-	ip, _, err := net.SplitHostPort(connECH.PeerAddr.String())
+	ip, _, err := net.SplitHostPort(echConn.PeerAddr.String())
 	if err != nil {
-		ip = connECH.PeerAddr.String()
+		ip = echConn.PeerAddr.String()
 	}
 
 	transport := "udp"
@@ -155,64 +165,30 @@ func (c *quicConn) Test(target string, withValidation bool) (*ConnDetails, error
 	return &details, nil
 }
 
-func (c *quicConn) listenAndDial(timeout time.Duration, domain string, port uint, config *quic.Config) (*quic.Conn, error) {
+const quicMaxRetries = 2
 
-	defer func() {
-		if err := recover(); err != nil {
-			logrus.Warnf("Quic panic for domain: %s:%d with: %v", domain, port, err)
-		}
-	}()
+func (c *quicConn) dialWithRetries(timeout time.Duration, host string, config *quic.Config) (conn *quic.Conn, retries int, err error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err := c.listener.Dial(ctx, "udp4", net.JoinHostPort(domain, strconv.Itoa(int(port))), config)
-	if err != nil {
-		// try to increase the timeout by x2
-		if err == context.DeadlineExceeded {
-			logrus.Warnf("[%s] quic connection timeout(=%dsec) from local(=%s) exeeded. Trying with timeout=%dsec", domain, int(timeout.Seconds()), c.listener.LocalAddr().String(), int(2*timeout.Seconds()))
-			extendedCtx, extendedCancel := context.WithTimeout(context.Background(), timeout*2)
-			defer extendedCancel()
-
-			extendedConn, extendedErr := c.listener.Dial(extendedCtx, "udp4", net.JoinHostPort(domain, "443"), config)
-			if extendedErr != nil {
-				return nil, fmt.Errorf("unable to dial quic connection even after extending timeout: %w", extendedErr)
-			}
-			extendedConn.Close()
-
-			return extendedConn, nil
+	for _ = range quicMaxRetries {
+		conn, err = c.listener.Dial(ctx, "udp4", host, config)
+		if err == nil {
+			return
 		}
-		return nil, fmt.Errorf("unable to dial quic connection: %w", err)
+
+		var rejectErr *ftls.ECHRejectionError
+		ok := errors.As(err, &rejectErr)
+		logrus.Warnf("%s: quic dial error, retries: %d; is RejectionError: %v", host, retries, ok)
+		if ok {
+			return
+		}
+
+		retries += 1
+		cancel()
+		ctx, cancel = context.WithTimeout(context.Background(), timeout+time.Second)
+
 	}
-
-	// we are not doing anything with the conn, hence closing it directly is ok
-	// since we have already captured everything we need
-	conn.Close()
-
-	return conn, nil
-}
-
-func (c *quicConn) tryRetryConfig(retryConfigs *ftls.ECHRejectionError) (*quic.Conn, goech.ECHConfigList, error) {
-	if len(retryConfigs.RetryConfigList) == 0 {
-		return nil, nil, fmt.Errorf("quic: RetryConfig: server provided empty RetryConfig")
-	}
-
-	parsedRetryList, err := echFromjRetry(retryConfigs.RetryConfigList)
-	if err != nil {
-		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to parse server provided RetryConfig: %v", err)
-	}
-
-	parsed, err := parsedRetryList.MarshalBinary()
-	if err != nil {
-		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
-	}
-
-	// retry ECH connection with parsed ECH RetryConfig
-	c.configWithEch.TLSConfig.EncryptedClientHelloConfigList = parsed
-	connECH, err := c.listenAndDial(c.connTimeout, c.domain, c.port, c.configWithEch)
-	if err != nil {
-		return nil, nil, fmt.Errorf("quic: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", c.domain, err)
-	}
-
-	return connECH, parsedRetryList, nil
+	return
 }

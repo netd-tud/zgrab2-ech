@@ -42,11 +42,22 @@ This will scan the provided domain for ECH for the protocols http1, http2 and qu
 ```bash
 $ echo "netd-research-one.de" | ./zgrab2 ech \
     --measure-latency \ # instruct to measure target without ECH
-    --protos h2 \ # only scan using http2
+    --protos h2 \ # only scan using ALPN=[h2]
     --conn-primer dns # before each scan of a target do a DNS query to the target
 ```
 
 __Note:__ The _echo_ input can be replaced by a `cat many_domains.txt | ...`, also file does not need to contain domains, can be IP addresses as well in which case the `--greased` flag __must__ be set!
+
+### Available Protocols (as of 24.06.2025)
+
+__h1:__ connects to the target domain using TLS over TCP with ALPN list of (http/1.1).
+
+__h2:__ connects to the target domain using TLS over TCP with ALPN list of (h2).
+
+__h3:__ connects to the target domain using QUIC with ALPN list of (h3).
+
+__ttfb:__ performs a HTTP GET request with TLS over TCP using ALPN list of (h2) and measures the elpased time between the finish of the TLS handshake and the first byte received by the client.
+
 
 ### Deploying the scanner
 The scanner can be deployed using the `deploy` or `deploy-grease` make target. Both require a `USER` argument which is the __ssh user__ to use for copying the executable. By default the executable is build for a __linux/amd64__ arch with `ech.research.netd.cs.tu-dresden.de` as the target host. The target host can be changed by supplying the make target with a `HOST` argument.
