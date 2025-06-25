@@ -69,12 +69,6 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		}
 	}
 
-	dialer := net.Dialer{
-		Timeout:   c.connTimeout,
-		KeepAlive: c.connTimeout,
-		Resolver:  net.DefaultResolver,
-	}
-
 	host := net.JoinHostPort(c.domain, strconv.Itoa(int(c.port)))
 
 	// tracing the TLS handshake latency requires to compare the latency from the
@@ -82,60 +76,78 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	// by establishing a non-ECH connection through the same protocol and host and measuring
 	// its latency.
 	if traceHandshakeLatency {
-		baseConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithoutEch)
-		if err != nil {
-			return &details, fmt.Errorf("failed to open TCP conneciton w/o ECH enabled to (host=%s): %v", host, err)
+		dialer := net.Dialer{
+			Timeout:   c.connTimeout,
+			KeepAlive: c.connTimeout,
+			Resolver:  net.DefaultResolver,
 		}
-		defer baseConn.Close()
 
-		if baseConn.ConnectionState().ECHAccepted {
+		anchor, retries, err := c.dialWithRetrys(&dialer, host, c.configWithoutEch)
+		if err != nil { // all retries failed
+			details.AnchorFailedConnAttempts = retries
+			return &details, fmt.Errorf("%s: tcp anchor failed, retries: %d: %v", host, retries, err)
+		}
+		defer anchor.Close()
+
+		if anchor.ConnectionState().ECHAccepted {
 			return &details, fmt.Errorf("non ECH connection used for latency cmp indicates use of ECH")
 		}
 
-		details.AnchorPeerIP = ipFromTlsConn(baseConn)
-		details.TLSHandshakeAnchorDuration = baseConn.TLSHandshakeDuration
+		details.AnchorPeerIP = ipFromTlsConn(anchor)
+		details.TLSHandshakeAnchorDuration = anchor.TLSHandshakeDuration
 	}
 
 	// try to establish the actual ECH connection. If it fails we check for any
 	// RetryConfig the server send back to us. Should there be any RetryConfig,
 	// we will parse it and try to establish the connection again with the RetryConfig
-	echConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithEch)
+	// echConn, err := ftls.DialWithDialer(&dialer, "tcp4", host, c.configWithEch)
+
+	dialer := net.Dialer{
+		Timeout:   c.connTimeout,
+		KeepAlive: c.connTimeout,
+		Resolver:  net.DefaultResolver,
+	}
+	echConn, retries, err := c.dialWithRetrys(&dialer, host, c.configWithEch)
 	if err != nil {
-		if retryConfigs, ok := err.(*ftls.ECHRejectionError); ok {
-			if len(retryConfigs.RetryConfigList) == 0 {
-				return &details, fmt.Errorf("tcp: tls: RetryConfig: server (%s) provided empty RetryConfig", c.domain)
-			}
+		details.FailedConnAttempts = retries
+		dialer.Timeout = c.connTimeout
 
-			var parsedRetryList goech.ECHConfigList
-			parsedRetryList, err = echFromjRetry(retryConfigs.RetryConfigList)
-			if err != nil {
-				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to parse server provided RetryConfig: %v", err)
-			}
-			details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
-				return RetryConfig{
-					EchVersion:  int(rt.Version),
-					EchConfigID: int(rt.ConfigID),
-					PublicName:  string(rt.RawPublicName),
-					CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
-						return cs.String()
-					}),
-				}
-			})
+		retryCfgs, ok := err.(*ftls.ECHRejectionError)
+		if !ok { // other error, retries failed
+			return &details, fmt.Errorf("%s: tcp ECH failed, retries: %d: %v ", host, retries, err)
+		}
 
-			parsed, err := parsedRetryList.MarshalBinary()
-			if err != nil {
-				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to marshal server provided RetryConfig: %v", err)
-			}
-			details.populateECHConfig(parsed) // overwrite intial config with the one that worked
+		if len(retryCfgs.RetryConfigList) == 0 {
+			return &details, fmt.Errorf("%s: server responded with empty RetryConfigs", host)
+		}
 
-			// retry ECH connection with parsed ECH RetryConfig
-			c.configWithEch.EncryptedClientHelloConfigList = parsed
-			echConn, err = ftls.DialWithDialer(&dialer, "tcp", host, c.configWithEch)
-			if err != nil {
-				return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", host, err)
+		var parsedRetryList goech.ECHConfigList
+		parsedRetryList, err = echFromjRetry(retryCfgs.RetryConfigList)
+		if err != nil {
+			return &details, fmt.Errorf("%s: failed to parse RetryConfigs: %v", host, err)
+		}
+
+		details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+			return RetryConfig{
+				EchVersion:  int(rt.Version),
+				EchConfigID: int(rt.ConfigID),
+				PublicName:  string(rt.RawPublicName),
+				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
+					return cs.String()
+				}),
 			}
-		} else {
-			return &details, fmt.Errorf("tcp: tls (ECH): failed to dial host(=%s): %v", host, err)
+		})
+		parsed, err := parsedRetryList.MarshalBinary()
+		if err != nil {
+			return &details, fmt.Errorf("%s: failed to marshal RetryConfigs: %v", host, err)
+		}
+		details.populateECHConfig(parsed) // overwrite intial config with the one that worked
+
+		c.configWithEch.EncryptedClientHelloConfigList = parsed
+		echConn, retries, err = c.dialWithRetrys(&dialer, host, c.configWithEch)
+		if err != nil {
+			details.RetryConfigFailedConnAttempts = retries
+			return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", host, err)
 		}
 	}
 	defer echConn.Close()
@@ -153,4 +165,24 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	details.ServerHello = serverHelloFromTlsConn(echConn)
 
 	return &details, nil
+}
+
+const tcpMaxRetries = 2
+
+func (c *tcpConn) dialWithRetrys(dialer *net.Dialer, host string, cfg *ftls.Config) (conn *ftls.Conn, retries int, err error) {
+	for _ = range tcpMaxRetries {
+		conn, err = ftls.DialWithDialer(dialer, "tcp4", host, cfg)
+		if err == nil {
+			return
+		}
+		_, ok := err.(*ftls.ECHRejectionError)
+		logrus.Warnf("%s: tcp dial error, retries: %d; is RejectionError: %v", host, retries, ok)
+		if ok {
+			return
+		}
+
+		retries += 1
+		dialer.Timeout += time.Second
+	}
+	return
 }

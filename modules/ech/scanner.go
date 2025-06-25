@@ -2,7 +2,6 @@ package ech
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/netd-tud/zgrab2/gofork/quic"
@@ -101,7 +100,7 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 		connPerDomainCount *= 2
 	}
 
-	fmt.Fprintf(os.Stdout, "Per domain %d connections will be made, at least one per provided protocol. One Additional connection when --measure-latency is set and one additional connection when --conn-primer != 'none'\n", connPerDomainCount)
+	log.Infof("Per domain %d connections will be made, at least one per provided protocol. One Additional connection when --measure-latency is set and one additional connection when --conn-primer != 'none'\n", connPerDomainCount)
 
 	return nil
 }
