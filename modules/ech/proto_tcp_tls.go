@@ -118,13 +118,13 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		}
 
 		if len(retryCfgs.RetryConfigList) == 0 {
-			return &details, fmt.Errorf("%s: server responded with empty RetryConfigs", host)
+			return &details, fmt.Errorf("%s: tcp server responded with empty RetryConfigs", host)
 		}
 
 		var parsedRetryList goech.ECHConfigList
 		parsedRetryList, err = echFromjRetry(retryCfgs.RetryConfigList)
 		if err != nil {
-			return &details, fmt.Errorf("%s: failed to parse RetryConfigs: %v", host, err)
+			return &details, fmt.Errorf("%s: tcp failed to parse RetryConfigs: %v", host, err)
 		}
 
 		details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
@@ -147,7 +147,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		echConn, retries, err = c.dialWithRetrys(&dialer, host, c.configWithEch)
 		if err != nil {
 			details.RetryConfigFailedConnAttempts = retries
-			return &details, fmt.Errorf("tcp: tls: RetryConfig: failed to host(=%q) with ECH RetryConfigs: %v", host, err)
+			return &details, fmt.Errorf("%s: tcp connection failed with RetryConfigs: %v", host, err)
 		}
 	}
 	defer echConn.Close()
