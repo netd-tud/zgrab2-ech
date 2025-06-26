@@ -180,7 +180,6 @@ func (c *quicConn) dialWithRetries(timeout time.Duration, host string, config *q
 
 		var rejectErr *ftls.ECHRejectionError
 		ok := errors.As(err, &rejectErr)
-		logrus.Warnf("%s: quic dial error, retries: %d; is RejectionError: %v", host, retries, ok)
 		if ok {
 			return
 		}

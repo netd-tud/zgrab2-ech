@@ -176,7 +176,6 @@ func (c *tcpConn) dialWithRetrys(dialer *net.Dialer, host string, cfg *ftls.Conf
 			return
 		}
 		_, ok := err.(*ftls.ECHRejectionError)
-		logrus.Warnf("%s: tcp dial error, retries: %d; is RejectionError: %v", host, retries, ok)
 		if ok {
 			return
 		}
