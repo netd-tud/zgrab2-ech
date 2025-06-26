@@ -1,6 +1,8 @@
 package ech
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -176,7 +178,7 @@ func (c *tcpConn) dialWithRetrys(dialer *net.Dialer, host string, cfg *ftls.Conf
 			return
 		}
 		_, ok := err.(*ftls.ECHRejectionError)
-		if ok {
+		if ok || errors.Is(err, context.Canceled) {
 			return
 		}
 

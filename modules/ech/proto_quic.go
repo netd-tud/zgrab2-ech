@@ -180,7 +180,7 @@ func (c *quicConn) dialWithRetries(timeout time.Duration, host string, config *q
 
 		var rejectErr *ftls.ECHRejectionError
 		ok := errors.As(err, &rejectErr)
-		if ok {
+		if ok || errors.Is(err, context.Canceled) {
 			return
 		}
 
