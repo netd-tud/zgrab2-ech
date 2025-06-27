@@ -351,6 +351,13 @@ __InsecureSkipVerify:__ in order to allow TLS connections using IP addresses and
 
 ## Tool
 
-### Greasy
+### greasy
+Allows you to quickly test _greased ECH_ connection to a domain / IP. Use `make greasy` to build the tool. You can chose between
+__TCP+TLS__ connection and __QUIC__ connections. Further the tool allows to overwrite ECH config values used for the greased connection as well as parameters for the TLS configurations, please check `greasy tcp --help` and `greasy quic --help` for full details
 
-Allows you to quickly test _greased ECH_ connection to a domain / IP. Use `make greasy` to build the tool.
+__Build:__ `make greasy`
+
+### echme
+Allows you to parse base64 encoded binary ECH configurations, as listed in the HTTPS resource record and write the information to stdout in ascii. The tool expects input via stdin. You can provide more than one base64 encoded ECH config, however per line only one config.
+
+__Build:__ `make echme`

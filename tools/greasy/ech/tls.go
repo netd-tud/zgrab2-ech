@@ -151,11 +151,13 @@ func LogEchConfigs(title string, configs ...goech.ECHConfig) {
 			logrus.Warnf("Unable to binary marshal public key for an ECH config: %v", err)
 		}
 
-		fmt.Fprintf(os.Stdout, "\x1b[0;33mECH Version  :\x1b[0m 0x%x (=%d)\n", config.Version, config.Version)
-		fmt.Fprintf(os.Stdout, "\x1b[0;33mConfig ID    :\x1b[0m %d\n", config.ConfigID)
-		fmt.Fprintf(os.Stdout, "\x1b[0;33mPublic Name  :\x1b[0m %s\n", string(config.RawPublicName))
-		fmt.Fprintf(os.Stdout, "\x1b[0;33mCipher Suites:\x1b[0m len=%d #1: %s\n", len(config.CipherSuites), config.CipherSuites[0])
-		fmt.Fprintf(os.Stdout, "\x1b[0;33mPublic  Key  :\x1b[0m %x\n", pubKey)
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mECH Version     :\x1b[0m 0x%x (=%d)\n", config.Version, config.Version)
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mConfig ID       :\x1b[0m %d\n", config.ConfigID)
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mPublic Name     :\x1b[0m %s\n", string(config.RawPublicName))
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mCipher Suites   :\x1b[0m len=%d #1: %s\n", len(config.CipherSuites), config.CipherSuites[0])
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mPublic Key      :\x1b[0m %x\n", pubKey)
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mMax Name length :\x1b[0m %x\n", pubKey)
+		fmt.Fprintf(os.Stdout, "\x1b[0;33mExtensions      :\x1b[0m %x\n", config.RawExtensions)
 
 		fmt.Fprintf(os.Stdout, "\n")
 	}

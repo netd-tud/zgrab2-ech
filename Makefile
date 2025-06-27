@@ -32,8 +32,13 @@ zgrab2:
 
 greasy:
 	cd tools/greasy && go build && cd ../..
-	rm -f zgrab2
+	rm -f greasy
 	ln -s tools/greasy/greasy$(EXECUTABLE_EXTENSION) greasy
+
+echme: 
+	cd tools/echme && go build && cd ../..
+	rm -f echme
+	ln -s tools/echme/echme$(EXECUTABLE_EXTENSION) echme
 
 install: setup-config
 	cd cmd/zgrab2 && go install && cd ../..
