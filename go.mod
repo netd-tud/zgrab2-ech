@@ -10,6 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/sirupsen/logrus v1.9.0
+	github.com/spf13/cobra v1.9.1
 	github.com/zmap/zcrypto v0.0.0-20230310154051-c8b263fd8300
 	github.com/zmap/zflags v1.4.0-beta.1.0.20200204220219-9d95409821b6
 	golang.org/x/crypto v0.38.0
@@ -24,12 +25,14 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/weppos/publicsuffix-go v0.30.0 // indirect
 	github.com/zmap/rc2 v0.0.0-20190804163417-abaa70531248 // indirect

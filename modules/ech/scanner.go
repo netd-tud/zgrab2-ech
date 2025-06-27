@@ -181,6 +181,9 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	for _, proto := range s.protos {
 		switch proto {
 		case "h1", "h2":
+			if proto == "h1" {
+				proto = "http/1.1"
+			}
 			protoIter.Append(newTcpConn(
 				targetStr,
 				s.config.Port,

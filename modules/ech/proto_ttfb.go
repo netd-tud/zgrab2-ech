@@ -130,13 +130,13 @@ func dialTLSCtxFunc(ttfbC *ttfb, domain string, port uint, cfg *ftls.Config) fun
 			ttfbC.TLSHSStart = tlsConn.TLSHandshakeStart
 			ttfbC.TLSHSDone = tlsConn.TLSHandhshakeDone
 			ttfbC.details.TLSHandshakeDuration = tlsConn.TLSHandshakeDuration
-			ttfbC.details.IP = ipFromTlsConn(tlsConn)
-			ttfbC.details.Transport = transportFromTlsConn(tlsConn)
-			ttfbC.details.TLSVersion = versionFromTlsConn(tlsConn)
-			ttfbC.details.ECHAccepted = echAcceptedFromTlsConn(tlsConn)
-			ttfbC.details.TLSHandshakeCompleted = handshakeCompletedFromTlsConn(tlsConn)
-			ttfbC.details.NegotiatedProto = protoFromTlsConn(tlsConn)
-			ttfbC.details.NegotiatedCipher = cipherFromTlsConn(tlsConn)
+			ttfbC.details.IP = IPFromTlsConn(tlsConn)
+			ttfbC.details.Transport = TransportFromTlsConn(tlsConn)
+			ttfbC.details.TLSVersion = VersionFromTlsConn(tlsConn)
+			ttfbC.details.ECHAccepted = EchAcceptedFromTlsConn(tlsConn)
+			ttfbC.details.TLSHandshakeCompleted = HandshakeCompletedFromTlsConn(tlsConn)
+			ttfbC.details.NegotiatedProto = ProtoFromTlsConn(tlsConn)
+			ttfbC.details.NegotiatedCipher = CipherFromTlsConn(tlsConn)
 			ttfbC.details.ClientHelloOuter = clientHelloOuterFromTlsConn(tlsConn)
 			ttfbC.details.ClientHelloInner = clientHelloInnerFromTlsConn(tlsConn)
 			ttfbC.details.ServerHello = serverHelloFromTlsConn(tlsConn)
@@ -150,7 +150,7 @@ func dialTLSCtxFunc(ttfbC *ttfb, domain string, port uint, cfg *ftls.Config) fun
 			ttfbC.AnchorTLSHSStart = tlsConn.TLSHandshakeStart
 			ttfbC.AnchorTLSHSDone = tlsConn.TLSHandhshakeDone
 			ttfbC.details.TLSHandshakeAnchorDuration = tlsConn.TLSHandshakeDuration
-			ttfbC.details.AnchorPeerIP = ipFromTlsConn(tlsConn)
+			ttfbC.details.AnchorPeerIP = IPFromTlsConn(tlsConn)
 			return conn, nil
 		}
 

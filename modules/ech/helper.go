@@ -43,7 +43,7 @@ func toIntSlice[T ~[]byte](vs T) []int {
 	return ints
 }
 
-func ipFromTlsConn(conn *ftls.Conn) *string {
+func IPFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil || conn.NetConn() == nil {
 		return nil
 	}
@@ -55,7 +55,7 @@ func ipFromTlsConn(conn *ftls.Conn) *string {
 	return &host
 }
 
-func transportFromTlsConn(conn *ftls.Conn) *string {
+func TransportFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil || conn.NetConn() == nil {
 		return nil
 	}
@@ -64,7 +64,7 @@ func transportFromTlsConn(conn *ftls.Conn) *string {
 	return &transport
 }
 
-func versionFromTlsConn(conn *ftls.Conn) *string {
+func VersionFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}
@@ -73,7 +73,7 @@ func versionFromTlsConn(conn *ftls.Conn) *string {
 	return &version
 }
 
-func echAcceptedFromTlsConn(conn *ftls.Conn) *bool {
+func EchAcceptedFromTlsConn(conn *ftls.Conn) *bool {
 	if conn == nil {
 		return nil
 	}
@@ -82,7 +82,7 @@ func echAcceptedFromTlsConn(conn *ftls.Conn) *bool {
 	return &accepted
 }
 
-func handshakeCompletedFromTlsConn(conn *ftls.Conn) *bool {
+func HandshakeCompletedFromTlsConn(conn *ftls.Conn) *bool {
 	if conn == nil {
 		return nil
 	}
@@ -92,7 +92,7 @@ func handshakeCompletedFromTlsConn(conn *ftls.Conn) *bool {
 	return &complete
 }
 
-func protoFromTlsConn(conn *ftls.Conn) *string {
+func ProtoFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}
@@ -102,7 +102,7 @@ func protoFromTlsConn(conn *ftls.Conn) *string {
 	return &proto
 }
 
-func cipherFromTlsConn(conn *ftls.Conn) *string {
+func CipherFromTlsConn(conn *ftls.Conn) *string {
 	if conn == nil {
 		return nil
 	}

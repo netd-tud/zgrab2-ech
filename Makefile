@@ -30,6 +30,11 @@ zgrab2:
 	rm -f zgrab2
 	ln -s cmd/zgrab2/zgrab2$(EXECUTABLE_EXTENSION) zgrab2
 
+greasy:
+	cd tools/greasy && go build && cd ../..
+	rm -f zgrab2
+	ln -s tools/greasy/greasy$(EXECUTABLE_EXTENSION) greasy
+
 install: setup-config
 	cd cmd/zgrab2 && go install && cd ../..
 

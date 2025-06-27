@@ -95,7 +95,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 			return &details, fmt.Errorf("non ECH connection used for latency cmp indicates use of ECH")
 		}
 
-		details.AnchorPeerIP = ipFromTlsConn(anchor)
+		details.AnchorPeerIP = IPFromTlsConn(anchor)
 		details.TLSHandshakeAnchorDuration = anchor.TLSHandshakeDuration
 	}
 
@@ -154,14 +154,14 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	}
 	defer echConn.Close()
 
-	details.IP = ipFromTlsConn(echConn)
-	details.Transport = transportFromTlsConn(echConn)
-	details.TLSVersion = versionFromTlsConn(echConn)
+	details.IP = IPFromTlsConn(echConn)
+	details.Transport = TransportFromTlsConn(echConn)
+	details.TLSVersion = VersionFromTlsConn(echConn)
 	details.TLSHandshakeDuration = echConn.TLSHandshakeDuration
-	details.ECHAccepted = echAcceptedFromTlsConn(echConn)
-	details.TLSHandshakeCompleted = handshakeCompletedFromTlsConn(echConn)
-	details.NegotiatedProto = protoFromTlsConn(echConn)
-	details.NegotiatedCipher = cipherFromTlsConn(echConn)
+	details.ECHAccepted = EchAcceptedFromTlsConn(echConn)
+	details.TLSHandshakeCompleted = HandshakeCompletedFromTlsConn(echConn)
+	details.NegotiatedProto = ProtoFromTlsConn(echConn)
+	details.NegotiatedCipher = CipherFromTlsConn(echConn)
 	details.ClientHelloOuter = clientHelloOuterFromTlsConn(echConn)
 	details.ClientHelloInner = clientHelloInnerFromTlsConn(echConn)
 	details.ServerHello = serverHelloFromTlsConn(echConn)

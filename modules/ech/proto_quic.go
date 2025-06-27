@@ -91,7 +91,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 
 		if anchor.TLS != nil && anchor.TLS.Conn != nil {
 			details.TLSHandshakeAnchorDuration = anchor.TLS.Conn.TLSHandshakeDuration
-			details.AnchorPeerIP = ipFromTlsConn(anchor.TLS.Conn)
+			details.AnchorPeerIP = IPFromTlsConn(anchor.TLS.Conn)
 		}
 	}
 
@@ -152,12 +152,12 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 
 	details.IP = &ip
 	details.Transport = &transport //NOTE: tlsConn.NetConn is nil (really not sure why
-	details.TLSVersion = versionFromTlsConn(tlsConn)
+	details.TLSVersion = VersionFromTlsConn(tlsConn)
 	details.TLSHandshakeDuration = tlsConn.TLSHandshakeDuration
-	details.ECHAccepted = echAcceptedFromTlsConn(tlsConn)
-	details.TLSHandshakeCompleted = handshakeCompletedFromTlsConn(tlsConn)
-	details.NegotiatedProto = protoFromTlsConn(tlsConn)
-	details.NegotiatedCipher = cipherFromTlsConn(tlsConn)
+	details.ECHAccepted = EchAcceptedFromTlsConn(tlsConn)
+	details.TLSHandshakeCompleted = HandshakeCompletedFromTlsConn(tlsConn)
+	details.NegotiatedProto = ProtoFromTlsConn(tlsConn)
+	details.NegotiatedCipher = CipherFromTlsConn(tlsConn)
 	details.ClientHelloOuter = clientHelloOuterFromTlsConn(tlsConn)
 	details.ClientHelloInner = clientHelloInnerFromTlsConn(tlsConn)
 	details.ServerHello = serverHelloFromTlsConn(tlsConn)

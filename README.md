@@ -347,3 +347,10 @@ for _, proto := range s.protos {
 ## Notes on go tls lib changes
 
 __InsecureSkipVerify:__ in order to allow TLS connections using IP addresses and avoid cert errors, the `gofork/tls/handshake_client.go:1123` has been changed such that cert errors with ECH will be ignored when `tls.Config.InsecureSkipVerify` is true.
+
+
+## Tool
+
+### Greasy
+
+Allows you to quickly test _greased ECH_ connection to a domain / IP. Use `make greasy` to build the tool.
