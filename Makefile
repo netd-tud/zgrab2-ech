@@ -8,7 +8,7 @@ GO_FILES = $(shell find . -type f -name '*.go')
 TEST_MODULES ?=
 .DEFAULT_GOAL := zgrab2
 
-all: zgrab2
+all: zgrab2 
 
 .PHONY: all clean integration-test integration-test-clean integration-test-run integration-test-build gofmt test install uninstall
 

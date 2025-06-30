@@ -372,7 +372,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 
 		defer func() {
 			var end = time.Now()
-			c.TLSHandshakeDuration = end.Sub(tlsStartTime).Milliseconds()
+			c.TLSHandshakeDuration = end.Sub(tlsStartTime).Microseconds()
 			c.TLSHandhshakeDone = end
 
 			c.ServerHello = hs.ServerHello
@@ -397,7 +397,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 
 	defer func() {
 		var end = time.Now()
-		c.TLSHandshakeDuration = end.Sub(tlsStartTime).Milliseconds()
+		c.TLSHandshakeDuration = end.Sub(tlsStartTime).Microseconds()
 		c.TLSHandhshakeDone = end
 
 		c.ClientHelloOuter = hs.ClientHello
