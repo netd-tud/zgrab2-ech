@@ -38,11 +38,12 @@ func init() {
 
 const maxRetries = 2
 
-func dialTCP(host string, config *tls.Config) (conn *tls.Conn, retries int, err error) {
+func dialTCP(host string, config *tls.Config) (conn *tls.Conn, addr string, retries int, err error) {
 
 	for _ = range maxRetries {
 		conn, err = tls.Dial("tcp4", host, config)
 		if err == nil {
+			addr = conn.RemoteAddr().Network()
 			return
 		}
 

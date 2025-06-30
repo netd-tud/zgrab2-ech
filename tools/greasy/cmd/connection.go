@@ -26,7 +26,7 @@ func getKeylogger() (io.Writer, error) {
 	return file, nil
 }
 
-type dialFn = func(host string, config *tls.Config) (*tls.Conn, int, error)
+type dialFn = func(host string, config *tls.Config) (*tls.Conn, string, int, error)
 
 func run(target string, dial dialFn) error {
 
@@ -63,7 +63,7 @@ func run(target string, dial dialFn) error {
 	host := net.JoinHostPort(target, strconv.Itoa(int(port)))
 
 	// init grease connection
-	conn, _, err := dial(host, config)
+	conn, addr, _, err := dial(host, config)
 	// looks like the server provided retry configs, try again!
 	if rejectErr := ech.RetryConfigs(err); rejectErr != nil {
 		retryConfigs, err := goech.UnmarshalECHConfigList(rejectErr.RetryConfigList)
@@ -87,7 +87,7 @@ func run(target string, dial dialFn) error {
 			return fmt.Errorf("Unable to binary marshal picked RetryConfig: %v", err)
 		}
 
-		conn, _, err = dial(host, config)
+		conn, addr, _, err = dial(host, config)
 		if err != nil {
 			return fmt.Errorf("ECH connection with RetryConfig failed: %v", err)
 		}
@@ -95,13 +95,13 @@ func run(target string, dial dialFn) error {
 		return err
 	}
 
-	pretty(host, conn)
+	pretty(host, addr, conn)
 	return nil
 }
 
-func pretty(host string, conn *tls.Conn) {
+func pretty(host string, addr string, conn *tls.Conn) {
 	fmt.Fprintf(os.Stdout, "=== %s: Connection Established, ECH Accepeted: %v ===\n", host, echAcceptedFromTlsConn(conn))
-	fmt.Fprintf(os.Stdout, "\tIP Address           : %s\n", ipFromTlsConn(conn))
+	fmt.Fprintf(os.Stdout, "\tIP Address           : %s\n", addr)
 	fmt.Fprintf(os.Stdout, "\tTLS Handshake Latency: %s\n", latencyFromTlsConn(conn))
 }
 
@@ -133,5 +133,5 @@ func latencyFromTlsConn(conn *tls.Conn) string {
 		return "nil connection"
 	}
 
-	return fmt.Sprintf("%sms", strconv.Itoa(int(conn.TLSHandshakeDuration)))
+	return fmt.Sprintf("%smicroseconds", strconv.Itoa(int(conn.TLSHandshakeDuration)))
 }

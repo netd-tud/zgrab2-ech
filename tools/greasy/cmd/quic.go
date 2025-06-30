@@ -40,22 +40,23 @@ func init() {
 }
 
 func dialQuic(listener *quic.Endpoint) dialFn {
-	return func(host string, config *tls.Config) (conn *tls.Conn, retries int, err error) {
+	return func(host string, config *tls.Config) (conn *tls.Conn, addr string, retries int, err error) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-		defer cancel()
 
-		for _ = range maxRetries {
+		for range maxRetries {
 
 			c, e := listener.Dial(ctx, "udp4", host, &quic.Config{TLSConfig: config})
 			err = e
 			if err == nil {
-				conn, err = c.TLS.Conn, e
+				conn, addr, err = c.TLS.Conn, c.PeerAddr.String(), e
+				cancel()
 				return
 			}
 
 			var rejectErr *tls.ECHRejectionError
 			ok := errors.As(err, &rejectErr)
 			if ok || errors.Is(err, context.Canceled) {
+				cancel()
 				return
 			}
 
@@ -63,6 +64,7 @@ func dialQuic(listener *quic.Endpoint) dialFn {
 			cancel()
 			ctx, cancel = context.WithTimeout(context.Background(), time.Second*3)
 		}
+		cancel()
 		return
 	}
 }
