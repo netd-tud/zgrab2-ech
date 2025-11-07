@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"time"
@@ -15,7 +16,6 @@ import (
 )
 
 type quicConn struct {
-	listener         *quic.Endpoint
 	domain           string
 	port             uint
 	connPrimer       func(*ConnDetails) error
@@ -24,9 +24,8 @@ type quicConn struct {
 	configWithoutEch *quic.Config
 }
 
-func newQuicConn(ln *quic.Endpoint, domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
+func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
 	return &quicConn{
-		listener:    ln,
 		domain:      domain,
 		port:        port,
 		connTimeout: time.Second * 2,
@@ -58,7 +57,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 		}
 	}()
 
-	var details = ConnDetails{
+	details := ConnDetails{
 		Timestamp:                  time.Now(),
 		Target:                     c.domain,
 		Protocol:                   "quic",
@@ -82,7 +81,12 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 		// we need some sort of anchor to compare the measurement against to.
 		// Thus, we measure the TLS handshake duration without ECH enabled.
 
-		anchor, retries, err := c.dialWithRetries(c.connTimeout, host, c.configWithoutEch)
+		listener, err := quic.Listen("udp4", ":0", nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer listener.Close(context.Background())
+		anchor, retries, err := c.dialWithRetries(listener, c.connTimeout, host, c.configWithoutEch)
 		if err != nil {
 			details.AnchorFailedConnAttempts = retries
 			return &details, fmt.Errorf("%s: quic anchor failed, retries: %d: %v", host, retries, err)
@@ -95,7 +99,12 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 		}
 	}
 
-	echConn, retries, err := c.dialWithRetries(c.connTimeout, host, c.configWithEch)
+	listener, err := quic.Listen("udp4", ":0", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listener.Close(context.Background())
+	echConn, retries, err := c.dialWithRetries(listener, c.connTimeout, host, c.configWithEch)
 	if err != nil {
 		details.FailedConnAttempts = retries
 
@@ -132,7 +141,13 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 
 		// retry ECH connection with parsed ECH RetryConfig
 		c.configWithEch.TLSConfig.EncryptedClientHelloConfigList = parsed
-		echConn, retries, err = c.dialWithRetries(c.connTimeout, host, c.configWithEch)
+
+		listener, err := quic.Listen("udp4", ":0", nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer listener.Close(context.Background())
+		echConn, retries, err = c.dialWithRetries(listener, c.connTimeout, host, c.configWithEch)
 		if err != nil {
 			details.RetryConfigFailedConnAttempts = retries
 			return &details, fmt.Errorf("%s: quic connection failed with RetryConfigs: %v", host, err)
@@ -151,7 +166,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 	transport := "udp"
 
 	details.IP = &ip
-	details.Transport = &transport //NOTE: tlsConn.NetConn is nil (really not sure why
+	details.Transport = &transport // NOTE: tlsConn.NetConn is nil (really not sure why
 	details.TLSVersion = VersionFromTlsConn(tlsConn)
 	details.TLSHandshakeDuration = tlsConn.TLSHandshakeDuration
 	details.ECHAccepted = EchAcceptedFromTlsConn(tlsConn)
@@ -167,13 +182,13 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 
 const quicMaxRetries = 2
 
-func (c *quicConn) dialWithRetries(timeout time.Duration, host string, config *quic.Config) (conn *quic.Conn, retries int, err error) {
-
+func (c *quicConn) dialWithRetries(listener *quic.Endpoint, timeout time.Duration, host string, config *quic.Config) (conn *quic.Conn, retries int, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	for _ = range quicMaxRetries {
-		conn, err = c.listener.Dial(ctx, "udp4", host, config)
+	for range quicMaxRetries {
+
+		conn, err = listener.Dial(ctx, "udp4", host, config)
 		if err == nil {
 			return
 		}
@@ -183,7 +198,6 @@ func (c *quicConn) dialWithRetries(timeout time.Duration, host string, config *q
 		if ok || errors.Is(err, context.Canceled) {
 			return
 		}
-
 		retries += 1
 		cancel()
 		ctx, cancel = context.WithTimeout(context.Background(), timeout+time.Second)

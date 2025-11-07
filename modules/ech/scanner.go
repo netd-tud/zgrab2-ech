@@ -86,12 +86,6 @@ func (s *Scanner) Init(flags zgrab2.ScanFlags) error {
 
 	s.protos = strings.Split(*s.config.Protocols, ",")
 
-	listener, err := quic.Listen("udp4", ":0", nil)
-	if err != nil {
-		return fmt.Errorf("unable to start quic listener: %w", err)
-	}
-	s.qListener = listener
-
 	connPerDomainCount := len(s.protos)
 	if s.config.MeasureHandshakeLatency {
 		connPerDomainCount *= 2
@@ -124,12 +118,11 @@ func (s *Scanner) Protocol() string {
 // the reason for the failure - if certain protocols failed (h2 | h3) the error will be located in the
 // respective protocol object.
 func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
-
 	if target.Domain == "" && target.IP.String() == "" {
 		return zgrab2.SCAN_APPLICATION_ERROR, nil, fmt.Errorf("input: scan target has no domain/IP")
 	}
 
-	var targetStr = target.Domain
+	targetStr := target.Domain
 	if target.IP.String() != "" && target.Domain == "" {
 		targetStr = target.IP.String()
 	}
@@ -153,7 +146,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 
 	// this function will be called before each measurement of a target
 	// unless provided its a NOP. Can be used to mitigate certain timing issues
-	var primerFunc = func(details *ConnDetails) error {
+	primerFunc := func(details *ConnDetails) error {
 		details.Primer = "none"
 		return nil
 	}
@@ -176,7 +169,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 		}
 	}
 
-	var protoIter = newProtoIter(s.config.MeasureHandshakeLatency)
+	protoIter := newProtoIter(s.config.MeasureHandshakeLatency)
 
 	for _, proto := range s.protos {
 		switch proto {
@@ -193,7 +186,6 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 			))
 		case "h3":
 			protoIter.Append(newQuicConn(
-				s.qListener,
 				targetStr,
 				s.config.Port,
 				targetConfig.preferenceListRaw,
