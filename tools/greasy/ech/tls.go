@@ -15,13 +15,12 @@ import (
 )
 
 func Grease(publicName string, opts ...func(*goech.ECHConfig)) (goech.ECHConfig, error) {
-
 	pubKey, _, err := hpke.KEM_X25519_HKDF_SHA256.Scheme().GenerateKeyPair()
 	if err != nil {
 		return goech.ECHConfig{}, fmt.Errorf("Unable to generate HPKE KEM_X25519_HKDP_SHA256 key pair as random public key for GREASE ECH config: %v", err)
 	}
 
-	var configID = make([]byte, 1)
+	configID := make([]byte, 1)
 	if n, err := rand.Read(configID); err != nil || n != 1 {
 		return goech.ECHConfig{}, fmt.Errorf("Unable to generate random config ID byte (read %d bytes): %v\n", n, err)
 	}
@@ -65,6 +64,7 @@ func WithConfigID(id int) func(*goech.ECHConfig) {
 		config.ConfigID = uint8(id)
 	}
 }
+
 func WithVersion(vers uint16) func(*goech.ECHConfig) {
 	return func(config *goech.ECHConfig) {
 		config.Version = vers
@@ -72,7 +72,6 @@ func WithVersion(vers uint16) func(*goech.ECHConfig) {
 }
 
 func TLS(domain string, cfg goech.ECHConfig, opts ...func(*tls.Config)) (*tls.Config, error) {
-
 	rawEch, err := cfg.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("Unable to binary marshal ECH config: %v", err)
@@ -121,7 +120,6 @@ func WithInsecureSkipVerify(yes bool) func(*tls.Config) {
 }
 
 func Replace(config *tls.Config, ech goech.ECHConfig) error {
-
 	raw, err := ech.MarshalBinary()
 	if err != nil {
 		return err
@@ -142,7 +140,6 @@ func RetryConfigs(err error) *tls.ECHRejectionError {
 }
 
 func LogEchConfigs(title string, configs ...goech.ECHConfig) {
-
 	fmt.Fprintf(os.Stderr, "=== %s ===\n", title)
 	for _, config := range configs {
 
@@ -161,4 +158,7 @@ func LogEchConfigs(title string, configs ...goech.ECHConfig) {
 
 		fmt.Fprintf(os.Stdout, "\n")
 	}
+}
+
+func ECHConfigJson(configs ...goech.ECHConfig) {
 }

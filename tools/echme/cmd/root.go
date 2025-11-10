@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var outputJson bool
+
+func Map[T, U any](slice []T, fn func(T) U) []U {
+	result := make([]U, len(slice))
+	for i, v := range slice {
+		result[i] = fn(v)
+	}
+	return result
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "echme",
@@ -22,7 +33,6 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-
 		reader := bufio.NewScanner(os.Stdin)
 
 		for reader.Scan() {
@@ -40,7 +50,19 @@ var rootCmd = &cobra.Command{
 				return
 			}
 
-			ech.LogEchConfigs(fmt.Sprintf("Parsed: %s", input), configs...)
+			if outputJson {
+				configsSerializable := Map(configs, ech.ToSerializable)
+
+				jsonData, err := json.Marshal(configsSerializable)
+				if err != nil {
+					logrus.Errorf("Unable to marshal ECH config list: %v", err)
+					return
+				}
+
+				fmt.Println(string(jsonData))
+			} else {
+				ech.LogEchConfigs(fmt.Sprintf("Parsed: %s", input), configs...)
+			}
 
 		}
 	},
@@ -60,9 +82,8 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.echme.yaml)")
+	rootCmd.PersistentFlags().BoolVar(&outputJson, "json", true, "json output")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
