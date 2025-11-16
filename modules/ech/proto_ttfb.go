@@ -2,6 +2,7 @@ package ech
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
@@ -41,7 +42,6 @@ func newTTFB(domain string, port uint, url string, rawEch []byte) *ttfb {
 			InsecureSkipVerify: true,
 		},
 		echClient: &http.Client{
-
 			Timeout: 2 * time.Second,
 			Transport: &http.Transport{
 				ForceAttemptHTTP2:   true,
@@ -97,10 +97,15 @@ func dialTLSCtxFunc(ttfbC *ttfb, domain string, port uint, cfg *ftls.Config) fun
 					ttfbC.details.RetryConfigs = mapTo(
 						parsedRetryList,
 						func(rt goech.ECHConfig) RetryConfig {
+							publicKey, err := rt.PublicKey.MarshalBinary()
+							if err != nil {
+								logrus.Info("Unable to parse PublicKey")
+							}
 							return RetryConfig{
 								EchVersion:  int(rt.Version),
 								EchConfigID: int(rt.ConfigID),
 								PublicName:  string(rt.RawPublicName),
+								PublicKey:   hex.EncodeToString(publicKey),
 								CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
 									return cs.String()
 								}),
@@ -159,7 +164,6 @@ func dialTLSCtxFunc(ttfbC *ttfb, domain string, port uint, cfg *ftls.Config) fun
 }
 
 func (c *ttfb) Test(target string, measureLatency bool) (*ConnDetails, error) {
-
 	if measureLatency {
 		traceAnchor := &httptrace.ClientTrace{
 			GotFirstResponseByte: func() {

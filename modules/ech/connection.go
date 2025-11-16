@@ -19,6 +19,7 @@ type RetryConfig struct {
 	EchConfigID  int      `json:"ech_config_id"`
 	PublicName   string   `json:"ech_public_name"`
 	CipherSuites []string `json:"ech_cipher_suites"`
+	PublicKey    string   `json:"ech_public_key"`
 }
 
 type ConnDetails struct {

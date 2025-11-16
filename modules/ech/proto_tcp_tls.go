@@ -3,6 +3,7 @@ package ech
 import (
 	"context"
 	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -134,10 +135,15 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		}
 
 		details.RetryConfigs = mapTo(parsedRetryList, func(rt goech.ECHConfig) RetryConfig {
+			publicKey, err := rt.PublicKey.MarshalBinary()
+			if err != nil {
+				logrus.Info("Unable to parse PublicKey")
+			}
 			return RetryConfig{
 				EchVersion:  int(rt.Version),
 				EchConfigID: int(rt.ConfigID),
 				PublicName:  string(rt.RawPublicName),
+				PublicKey:   hex.EncodeToString(publicKey),
 				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
 					return cs.String()
 				}),
