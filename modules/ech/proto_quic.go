@@ -2,6 +2,7 @@ package ech
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"log"
@@ -76,6 +77,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 	}
 
 	host := net.JoinHostPort(c.domain, strconv.Itoa(int(c.port)))
+	var anchorCertificate *x509.Certificate = nil
 	if measureLatency {
 		// since we are also measuring how long the TLS handshake took
 		// we need some sort of anchor to compare the measurement against to.
@@ -97,6 +99,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 			details.TLSHandshakeAnchorDuration = anchor.TLS.Conn.TLSHandshakeDuration
 			details.AnchorPeerIP = IPFromTlsConn(anchor.TLS.Conn)
 		}
+		anchorCertificate = anchor.TLS.ConnectionState().PeerCertificates[0]
 	}
 
 	listener, err := quic.Listen("udp4", ":0", nil)
@@ -152,6 +155,13 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 			details.RetryConfigFailedConnAttempts = retries
 			return &details, fmt.Errorf("%s: quic connection failed with RetryConfigs: %v", host, err)
 		}
+
+		echConnCertificate := echConn.TLS.ConnectionState().PeerCertificates[0]
+		if (anchorCertificate != nil) && (echConnCertificate != nil) {
+			match := anchorCertificate == echConnCertificate
+			details.TLSCertificateMatch = &match
+		}
+
 	}
 	defer echConn.Close()
 

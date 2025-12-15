@@ -48,6 +48,7 @@ type ConnDetails struct {
 	TLSVersion                    *string             `json:"tls_version"`
 	TLSHandshakeDuration          int64               `json:"tls_handshake_duration_with_ech"`
 	TLSHandshakeAnchorDuration    int64               `json:"tls_handshake_duration_without_ech"`
+	TLSCertificateMatch           *bool               `json:"tls_certificate_match"`
 	AnchorPeerIP                  *string             `json:"tls_handshake_anchor_ip"`
 	ECHAccepted                   *bool               `json:"accepted_ech"`
 	TLSHandshakeCompleted         *bool               `json:"tls_handshake_completed"`
@@ -62,7 +63,6 @@ type ConnDetails struct {
 }
 
 func (c *ConnDetails) populateECHConfig(rawList []byte) {
-
 	cfgList, err := goech.UnmarshalECHConfigList(rawList)
 	if err != nil {
 		logrus.Warnf("populateECHConfig: unable to unmarshal list: %v\n", err)
@@ -156,7 +156,6 @@ func mapTo[F any, T any](original []F, fn func(F) T) []T {
 // based on measurements these function where needed to level / remove networking bias
 // for measuring TLS handshake latencies.
 func primeWithTLSConn(domain string, cfg *ftls.Config, dialer *net.Dialer) error {
-
 	var conn *ftls.Conn
 	var err error
 

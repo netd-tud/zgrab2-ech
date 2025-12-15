@@ -2,6 +2,7 @@ package ech
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -52,7 +53,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		}
 	}()
 
-	var details = ConnDetails{
+	details := ConnDetails{
 		Timestamp:                  time.Now(),
 		Target:                     c.domain,
 		Port:                       c.port,
@@ -77,6 +78,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 	// ECH connection with some base line latency. This base line latency is collected
 	// by establishing a non-ECH connection through the same protocol and host and measuring
 	// its latency.
+	var anchorCertificate *x509.Certificate = nil
 	if traceHandshakeLatency {
 		dialer := net.Dialer{
 			Timeout:   c.connTimeout,
@@ -97,6 +99,8 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 
 		details.AnchorPeerIP = IPFromTlsConn(anchor)
 		details.TLSHandshakeAnchorDuration = anchor.TLSHandshakeDuration
+
+		anchorCertificate = anchor.ConnectionState().PeerCertificates[0]
 	}
 
 	// try to establish the actual ECH connection. If it fails we check for any
@@ -151,6 +155,12 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 			details.RetryConfigFailedConnAttempts = retries
 			return &details, fmt.Errorf("%s: tcp connection failed with RetryConfigs: %v", host, err)
 		}
+
+		echConnCertificate := echConn.ConnectionState().PeerCertificates[0]
+		if (anchorCertificate != nil) && (echConnCertificate != nil) {
+			match := anchorCertificate == echConnCertificate
+			details.TLSCertificateMatch = &match
+		}
 	}
 	defer echConn.Close()
 
@@ -172,7 +182,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 const tcpMaxRetries = 2
 
 func (c *tcpConn) dialWithRetrys(dialer *net.Dialer, host string, cfg *ftls.Config) (conn *ftls.Conn, retries int, err error) {
-	for _ = range tcpMaxRetries {
+	for range tcpMaxRetries {
 		conn, err = ftls.DialWithDialer(dialer, "tcp4", host, cfg)
 		if err == nil {
 			return
