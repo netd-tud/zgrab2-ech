@@ -118,6 +118,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 		details.FailedConnAttempts = retries
 		dialer.Timeout = c.connTimeout
 
+		details.TLSHandshakeInvalidECHDuration = echConn.TLSHandshakeDuration
 		retryCfgs, ok := err.(*ftls.ECHRejectionError)
 		if !ok { // other error, retries failed
 			return &details, fmt.Errorf("%s: tcp ECH failed, retries: %d: %v ", host, retries, err)
