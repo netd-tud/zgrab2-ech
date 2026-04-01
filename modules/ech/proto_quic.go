@@ -111,7 +111,6 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 	if err != nil {
 		details.FailedConnAttempts = retries
 
-		details.TLSHandshakeInvalidECHDuration = echConn.TLS.Conn.TLSHandshakeDuration
 		var rejectErr *ftls.ECHRejectionError
 		ok := errors.As(err, &rejectErr)
 		if !ok { // some unrecoverable error
