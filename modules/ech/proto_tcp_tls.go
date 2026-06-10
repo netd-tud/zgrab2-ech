@@ -100,6 +100,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 
 		details.AnchorPeerIP = IPFromTlsConn(anchor)
 		details.TLSHandshakeAnchorDuration = anchor.TLSHandshakeDuration
+		details.AnchoServerHello = serverHelloFromTlsConn(anchor)
 
 		anchorCertificate = anchor.ConnectionState().PeerCertificates[0]
 	}

@@ -97,8 +97,14 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 		defer anchor.Close()
 
 		if anchor.TLS != nil && anchor.TLS.Conn != nil {
+
 			details.TLSHandshakeAnchorDuration = anchor.TLS.Conn.TLSHandshakeDuration
-			details.AnchorPeerIP = IPFromTlsConn(anchor.TLS.Conn)
+			ip, _, err := net.SplitHostPort(anchor.PeerAddr.String())
+			if err != nil {
+				ip = anchor.PeerAddr.String()
+			}
+			details.AnchorPeerIP = &ip
+			details.AnchoServerHello = serverHelloFromTlsConn(anchor.TLS.Conn)
 		}
 		anchorCertificate = anchor.TLS.ConnectionState().PeerCertificates[0]
 	}
