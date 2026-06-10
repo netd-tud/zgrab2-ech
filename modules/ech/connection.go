@@ -8,8 +8,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/netd-tud/zgrab2/gofork/quic"
 	ftls "github.com/netd-tud/zgrab2/gofork/tls"
 	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/OmarTariq612/goech"
 )
@@ -152,6 +154,36 @@ func mapTo[F any, T any](original []F, fn func(F) T) []T {
 		out[i] = fn(o)
 	}
 	return out
+}
+
+// establish a QUIC connection to the target. No information but the error is returned.
+// based on measurements these function where needed to level / remove networking bias
+// for measuring TLS handshake latencies.
+func primeWithQUICConn(domain string, cfg *ftls.Config, dialer *net.Dialer) error {
+	var err error
+
+	host := net.JoinHostPort(domain, "443")
+	listener, err := quic.Listen("udp4", ":0", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listener.Close(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	anchor, err := listener.Dial(ctx, "udp4", host, &quic.Config{
+		TLSConfig: &ftls.Config{
+			MinVersion:         ftls.VersionTLS13,
+			ServerName:         domain,
+			NextProtos:         []string{"h3"},
+			InsecureSkipVerify: true,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("primer: failed to open quic on port 443 to %s: %v", domain, err)
+	}
+	defer anchor.Close()
+
+	return nil
 }
 
 // establish a TLS connection to the target. No information but the error is returned.
