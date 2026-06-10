@@ -162,11 +162,23 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 			details.Primer = "tls"
 			return primeWithTLSConn(targetStr, &ftls.Config{ServerName: targetStr}, nil)
 		}
+	case "quic":
+		log.Println("Selected QUIC")
+		primerFunc = func(details *ConnDetails) error {
+			details.Primer = "tls"
+			return primeWithQUICConn(targetStr, &ftls.Config{ServerName: targetStr}, nil)
+		}
 	case "dns":
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "dns"
 			return primeWithDNSConn(targetStr)
 		}
+	case "none":
+		// silent ignore
+
+	default:
+		log.Errorf("selected connection primer %s does not exist", *s.config.ConnectionPrimer)
+		log.Exit(1)
 	}
 
 	protoIter := newProtoIter(s.config.MeasureHandshakeLatency)
