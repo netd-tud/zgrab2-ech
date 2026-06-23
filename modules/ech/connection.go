@@ -63,7 +63,6 @@ type ConnDetails struct {
 	ClientHelloOuter              ftls.ClientHelloMsg `json:"client_hello_outer"`
 	ClientHelloInner              ftls.ClientHelloMsg `json:"client_hello_inner"`
 	ServerHello                   ftls.ServerHelloMsg `json:"server_hello"`
-	AnchoServerHello              ftls.ServerHelloMsg `json:"anchor_server_hello"`
 }
 
 func (c *ConnDetails) populateECHConfig(rawList []byte) {

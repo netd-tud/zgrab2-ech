@@ -104,7 +104,6 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 				ip = anchor.PeerAddr.String()
 			}
 			details.AnchorPeerIP = &ip
-			details.AnchoServerHello = serverHelloFromTlsConn(anchor.TLS.Conn)
 		}
 		anchorCertificate = anchor.TLS.ConnectionState().PeerCertificates[0]
 	}
