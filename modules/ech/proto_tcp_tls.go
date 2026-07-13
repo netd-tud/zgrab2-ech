@@ -147,6 +147,7 @@ func (c *tcpConn) Test(target string, traceHandshakeLatency bool) (*ConnDetails,
 				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
 					return cs.String()
 				}),
+				MaxNameLen: int(rt.MaxNameLength),
 			}
 		})
 		parsed, err := parsedRetryList.MarshalBinary()

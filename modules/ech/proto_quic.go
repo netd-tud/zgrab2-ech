@@ -136,6 +136,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 			if err != nil {
 				logrus.Info("Unable to parse PublicKey")
 			}
+
 			return RetryConfig{
 				EchVersion:  int(rt.Version),
 				EchConfigID: int(rt.ConfigID),
@@ -144,6 +145,7 @@ func (c *quicConn) Test(target string, measureLatency bool) (*ConnDetails, error
 				CipherSuites: mapTo(rt.CipherSuites, func(cs goech.HpkeSymmetricCipherSuite) string {
 					return cs.String()
 				}),
+				MaxNameLen: int(rt.MaxNameLength),
 			}
 		})
 
