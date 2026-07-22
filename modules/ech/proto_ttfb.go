@@ -28,18 +28,18 @@ type ttfb struct {
 	AnchorTLSHSDone  time.Time
 }
 
-func newTTFB(domain string, port uint, url string, rawEch []byte) *ttfb {
+func newTTFB(domain string, port uint, url string, rawEch []byte, verify bool) *ttfb {
 	ttfbC := &ttfb{
 		port: port,
 		url:  url,
 		echTlsCfg: &ftls.Config{
 			ServerName:                     domain,
 			EncryptedClientHelloConfigList: rawEch,
-			InsecureSkipVerify:             true,
+			InsecureSkipVerify:             !verify,
 		},
 		tlsCfg: &ftls.Config{
 			ServerName:         domain,
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: !verify,
 		},
 		echClient: &http.Client{
 			Timeout: 2 * time.Second,

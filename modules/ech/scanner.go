@@ -36,8 +36,9 @@ type Flags struct {
 	ConfigID      *uint8  `long:"cfg-id" description:"overwrite the ech config id (effect global: all targets will use value)"`
 	ConfigPubName *string `long:"cfg-pub-name" description:"overwrite the ech config public name (effect global: all targets will use value)"`
 
-	Resolvers *string `long:"resolvers" description:"comma separated list of DNS resolver ip:port"`
-	GetURL    *string `long:"x-get" default:"/" description:"url used for ttfb proto, else ignored"`
+	Resolvers         *string `long:"resolvers" description:"comma separated list of DNS resolver ip:port"`
+	GetURL            *string `long:"x-get" default:"/" description:"url used for ttfb proto, else ignored"`
+	VerifyCertificate bool    `long:"verify" description:"Enable certificate verification. (default: disabled)"`
 }
 
 func (f *Flags) Validate(args []string) error {
@@ -160,13 +161,13 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 	case "tls":
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "tls"
-			return primeWithTLSConn(targetStr, &ftls.Config{ServerName: targetStr}, nil)
+			return primeWithTLSConn(targetStr, &ftls.Config{ServerName: targetStr, InsecureSkipVerify: !s.config.VerifyCertificate}, nil)
 		}
 	case "quic":
 		log.Println("Selected QUIC")
 		primerFunc = func(details *ConnDetails) error {
 			details.Primer = "tls"
-			return primeWithQUICConn(targetStr, &ftls.Config{ServerName: targetStr}, nil)
+			return primeWithQUICConn(targetStr, &ftls.Config{ServerName: targetStr}, nil, s.config.VerifyCertificate)
 		}
 	case "dns":
 		primerFunc = func(details *ConnDetails) error {
@@ -195,6 +196,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 				targetConfig.preferenceListRaw,
 				[]string{proto},
 				primerFunc,
+				s.config.VerifyCertificate,
 			))
 		case "h3":
 			protoIter.Append(newQuicConn(
@@ -202,6 +204,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 				s.config.Port,
 				targetConfig.preferenceListRaw,
 				primerFunc,
+				s.config.VerifyCertificate,
 			))
 		case "ttfb":
 			protoIter.Append(newTTFB(
@@ -209,6 +212,7 @@ func (s *Scanner) Scan(target zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}
 				s.config.Port,
 				*s.config.GetURL,
 				targetConfig.preferenceListRaw,
+				s.config.VerifyCertificate,
 			))
 		default:
 			log.Warnf("unrecogniced protocol provided: don't know: %q\n", proto)
@@ -249,7 +253,8 @@ func (s *Scanner) resolveECHConfig(target zgrab2.ScanTarget, targetStr string, g
 				return nil, fmt.Errorf("dns: unable to resolve HTTPS RR for target: %v", err)
 			}
 
-			return fromAnswers(answers,
+			return fromAnswers(
+				answers,
 				overwriteConfigVersion(s.config.ConfigVersion),
 				overwriteConfigID(s.config.ConfigID),
 				overwriteConfigPubName(s.config.ConfigPubName),

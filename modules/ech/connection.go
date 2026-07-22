@@ -159,7 +159,7 @@ func mapTo[F any, T any](original []F, fn func(F) T) []T {
 // establish a QUIC connection to the target. No information but the error is returned.
 // based on measurements these function where needed to level / remove networking bias
 // for measuring TLS handshake latencies.
-func primeWithQUICConn(domain string, cfg *ftls.Config, dialer *net.Dialer) error {
+func primeWithQUICConn(domain string, cfg *ftls.Config, dialer *net.Dialer, verify bool) error {
 	var err error
 
 	host := net.JoinHostPort(domain, "443")
@@ -175,7 +175,7 @@ func primeWithQUICConn(domain string, cfg *ftls.Config, dialer *net.Dialer) erro
 			MinVersion:         ftls.VersionTLS13,
 			ServerName:         domain,
 			NextProtos:         []string{"h3"},
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: !verify,
 		},
 	})
 	if err != nil {

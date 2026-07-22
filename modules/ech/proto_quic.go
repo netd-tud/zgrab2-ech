@@ -26,7 +26,7 @@ type quicConn struct {
 	configWithoutEch *quic.Config
 }
 
-func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetails) error) *quicConn {
+func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetails) error, verify bool) *quicConn {
 	return &quicConn{
 		domain:      domain,
 		port:        port,
@@ -38,7 +38,7 @@ func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetai
 				ServerName:                     domain,
 				EncryptedClientHelloConfigList: rawEch,
 				NextProtos:                     []string{"h3"},
-				InsecureSkipVerify:             true,
+				InsecureSkipVerify:             !verify,
 			},
 		},
 		configWithoutEch: &quic.Config{
@@ -46,7 +46,7 @@ func newQuicConn(domain string, port uint, rawEch []byte, primer func(*ConnDetai
 				MinVersion:         ftls.VersionTLS13,
 				ServerName:         domain,
 				NextProtos:         []string{"h3"},
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: !verify,
 			},
 		},
 	}

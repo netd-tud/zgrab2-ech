@@ -26,7 +26,7 @@ type tcpConn struct {
 	configWithoutEch *ftls.Config
 }
 
-func newTcpConn(domain string, port uint, echList []byte, protos []string, primer func(*ConnDetails) error) *tcpConn {
+func newTcpConn(domain string, port uint, echList []byte, protos []string, primer func(*ConnDetails) error, verify bool) *tcpConn {
 	return &tcpConn{
 		proto:       protos[0],
 		domain:      domain,
@@ -37,12 +37,12 @@ func newTcpConn(domain string, port uint, echList []byte, protos []string, prime
 			ServerName:                     domain,
 			EncryptedClientHelloConfigList: echList,
 			NextProtos:                     protos,
-			InsecureSkipVerify:             true, // allows to use IPs as well
+			InsecureSkipVerify:             !verify, // allows to use IPs as well
 		},
 		configWithoutEch: &ftls.Config{
 			ServerName:         domain,
 			NextProtos:         protos,
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: !verify,
 		},
 	}
 }
